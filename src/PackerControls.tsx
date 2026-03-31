@@ -23,7 +23,7 @@ function PackerControls({ bin, items, onItemsPacked, onBinPacked }: PackerContro
     //   items: items,
     // };
 
-    const payload = ExampleData;
+    const payload = TestData;
 
     const json = JSON.stringify(payload);
     const result: string = await invoke("pack_bin", { json });
@@ -57,11 +57,11 @@ function PackerControls({ bin, items, onItemsPacked, onBinPacked }: PackerContro
 
 export default PackerControls;
 
-const ExampleData = {
+const SimpleData = {
   "bin": {
-    "width": 3,
-    "height": 5,
-    "depth": 3
+    "width": 3.0,
+    "height": 5.0,
+    "depth": 3.0
   },
   "items": [
     {
@@ -70,39 +70,237 @@ const ExampleData = {
       "x": 0,
       "y": 0,
       "z": 0,
-      "width": 2,
-      "height": 2,
-      "depth": 2
+      "width": 2.0,
+      "height": 1.0,
+      "depth": 3.0,
+      "rotate_x": 0,
+      "rotate_y": 0,
+      "rotate_z": 0,
     },
     {
       "id": 1,
-      "name": "ex2",
+      "name": "example1",
       "x": 0,
       "y": 0,
       "z": 0,
-      "width": 3,
-      "height": 2,
-      "depth": 3
+      "width": 1.0,
+      "height": 3.0,
+      "depth": 2.0,
+      "rotate_x": 0,
+      "rotate_y": 0,
+      "rotate_z": 0,
     },
     {
       "id": 2,
-      "name": "ex3",
+      "name": "example1",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 1.0,
+      "height": 1.0,
+      "depth": 5.0,
+      "rotate_x": 0,
+      "rotate_y": 0,
+      "rotate_z": 0,
+    },
+    {
+      "id": 3,
+      "name": "example1",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 1.0,
+      "height": 1.0,
+      "depth": 4.0,
+      "rotate_x": 0,
+      "rotate_y": 0,
+      "rotate_z": 0,
+    },
+  ]
+};
+
+const TestData = {
+  "bin": {
+    "width": 3,
+    "height": 2,
+    "depth": 1
+  },
+  "items": [
+    {
+      "id": 0,
+      "name": "example1",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 1,
+      "height": 0.5,
+      "depth": 1,
+      "rotate_x": 0,
+      "rotate_y": 0,
+      "rotate_z": 0,
+    },
+    {
+      "id": 1,
+      "name": "example1",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 2,
+      "height": 1,
+      "depth": 1,
+      "rotate_x": 0,
+      "rotate_y": 0,
+      "rotate_z": 0,
+    },
+    {
+      "id": 2,
+      "name": "example1",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 1,
+      "height": 0.4,
+      "depth": 1,
+      "rotate_x": 0,
+      "rotate_y": 0,
+      "rotate_z": 0,
+    },
+    {
+      "id": 3,
+      "name": "example1",
       "x": 0,
       "y": 0,
       "z": 0,
       "width": 1,
       "height": 1,
-      "depth": 1
+      "depth": 1,
+      "rotate_x": 0,
+      "rotate_y": 0,
+      "rotate_z": 0,
     },
     {
-      "id": 3,
-      "name": "ex4",
+      "id": 4,
+      "name": "example1",
       "x": 0,
       "y": 0,
       "z": 0,
-      "width": 2,
-      "height": 1,
-      "depth": 2
-    }
+      "width": 3,
+      "height": 0.2,
+      "depth": 1,
+      "rotate_x": 0,
+      "rotate_y": 0,
+      "rotate_z": 0,
+    },
+  ]
+};
+
+const HLJData = {
+  "bin": {
+    "width": 48,
+    "height": 35,
+    "depth": 33
+  },
+  "items": [
+    {
+      "id": 0,
+      "name": "liger panzer",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 40,
+      "height": 14,
+      "depth": 33,
+      "rotate_x": 0,
+      "rotate_y": 0,
+      "rotate_z": 0,
+    },
+    {
+      "id": 1,
+      "name": "arhan",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 30,
+      "height": 11,
+      "depth": 19,
+      "rotate_x": 0,
+      "rotate_y": 0,
+      "rotate_z": 0,
+    },
+    {
+      "id": 2,
+      "name": "new arhan",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 30,
+      "height": 12,
+      "depth": 21,
+      "rotate_x": 0,
+      "rotate_y": 0,
+      "rotate_z": 0,
+    },
+    {
+      "id": 3,
+      "name": "gqux",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 30,
+      "height": 7,
+      "depth": 19,
+      "rotate_x": 0,
+      "rotate_y": 0,
+      "rotate_z": 0,
+    },
+  ]
+};
+
+const HLJRusty = {
+  "bin": {
+    "width": 48,
+    "height": 35,
+    "depth": 33
+  },
+  "items": [
+    {
+      "id": 0,
+      "name": "rusty",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 40,
+      "height": 14,
+      "depth": 33,
+      "rotate_x": 0,
+      "rotate_y": 0,
+      "rotate_z": 0,
+    },
+    {
+      "id": 0,
+      "name": "rusty",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 40,
+      "height": 14,
+      "depth": 33,
+      "rotate_x": 0,
+      "rotate_y": 0,
+      "rotate_z": 0,
+    },
+    {
+      "id": 2,
+      "name": "yukikaze mave",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 23,
+      "height": 14,
+      "depth": 4,
+      "rotate_x": 0,
+      "rotate_y": 0,
+      "rotate_z": 0,
+    },
   ]
 };
