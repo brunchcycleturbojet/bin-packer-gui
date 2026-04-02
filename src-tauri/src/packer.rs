@@ -1,28 +1,14 @@
 use std::collections::HashSet;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Bin {
-    pub id: String,
     pub width: f64,
     pub height: f64,
     pub depth: f64,
-    pub items: Vec<Item>,
 }
 
-impl Bin {
-    // Creates a new Bin with the given dimensions and an empty items list
-    pub fn new(id: String, width: f64, height: f64, depth: f64) -> Self {
-        Bin {
-            id,
-            width,
-            height,
-            depth,
-            items: Vec::new(),
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Item {
     pub id: i32,
     pub name: String,
@@ -56,17 +42,24 @@ struct Space {
     height: f64,
     depth: f64,
 }
+impl Space {
+    fn volume(&self) -> f64 {
+        self.width * self.height * self.depth
+    }
+}
 
 pub struct PackResult {
     pub bin: Bin,
     pub placed: Vec<Item>,
     pub unplaced: Vec<Item>,
+    // TODO: Add time taken
 }
 
 pub struct BinPacker3D;
 
 // Heuristic 3D bin packing for one rectangular bin and items, with axis-aligned rotations only.
 // An optimal solution is NOT guaranteed. The algorithms in use are approximations as the problem is NP-hard (as of writing!).
+// Based on the Shotput algorithm: https://medium.com/the-chain/solving-the-box-selection-algorithm-8695df087a4
 //
 // Bin/Item origin is considered at the bottom left corner.
 // Coordinates are such that X = width, Y = height (up), Z = depth.
@@ -74,19 +67,14 @@ impl BinPacker3D {
 
     // Packs items into one bin.
     // Returns a copy of the input bin, placed items with sorted position/rotations, and any unplaced items.
-    pub fn pack(mut bin: Bin, items: Vec<Item>) -> PackResult {
+    pub fn pack(bin: Bin, items: Vec<Item>) -> PackResult {
         let mut unplaced = Vec::new();
         let mut placed = Vec::new();
 
-        // Sort items by descending volume (largest first) - This will be the order we process items in.
+        // Sort items by largest dimension, descending - This will be the order we process items in.
         let mut sorted_items = items;
-        sorted_items.sort_by(|a, b| {
-            let vol_a = a.width * a.height * a.depth;
-            let vol_b = b.width * b.height * b.depth;
-            vol_b.partial_cmp(&vol_a).unwrap()
-        });
 
-        // Move any items that are larger than the bin dimensions to the unplaced list immediately, since they can never be placed.
+        // Move any items that are larger than the bin dimensions to the unplaced list first, since they can never be placed.
         // Although they might fit diagonally for a more optimal solution, for simplicity we only try 90 degree rotations.
         sorted_items.retain(|item| {
             let item_max = item.width.max(item.height).max(item.depth);
@@ -97,6 +85,11 @@ impl BinPacker3D {
             } else {
                 true
             }
+        });
+        sorted_items.sort_by(|a, b| { // Largest dimension primary
+            let max_dim_a = a.width.max(a.height).max(a.depth);
+            let max_dim_b = b.width.max(b.height).max(b.depth);
+            max_dim_b.partial_cmp(&max_dim_a).unwrap()
         });
 
         // Define all the largest possible blocks of free 'Space' in the bin.
@@ -112,19 +105,19 @@ impl BinPacker3D {
         }];
 
         for item in sorted_items {
-            let mut smallest_waste: Option<(usize, Orientation, f64)> = None;
+            let mut least_leftover: Option<(usize, Orientation, f64)> = None;
             let mut best_space: Option<Space> = None;
 
-            // To find the smallest free space block we can place this item into,
-            // try placing this item in each available block of free space,
-            // across all possible orientations of the item.
+            // Rotate the item in all possible orientations, and place it in the space that leaves the largest leftover volume
             for (si, space) in free_spaces.iter().enumerate() {
                 for ori in Self::orientations(&item) {
-                    if (ori.width <= space.width && ori.height <= space.height && ori.depth <= space.depth) {
+                    // Check if item fits in space without intersecting with any other already packed items
+                    if ori.width <= space.width && ori.height <= space.height && ori.depth <= space.depth
+                        && !Self::intersects_with_any(space.x, space.y, space.z, ori.width, ori.height, ori.depth, &placed) {
 
-                        let waste = space.width * space.height * space.depth - ori.width * ori.height * ori.depth;
-                        if smallest_waste.is_none() || waste < smallest_waste.as_ref().unwrap().2 {
-                            smallest_waste = Some((si, ori, waste));
+                        let leftover = space.width * space.height * space.depth - ori.width * ori.height * ori.depth;
+                        if least_leftover.is_none() || leftover < least_leftover.as_ref().unwrap().2 {
+                            least_leftover = Some((si, ori, leftover));
                             best_space = Some(space.clone());
                         }
                     }
@@ -133,7 +126,7 @@ impl BinPacker3D {
             }
 
             // Found the smallest space to fit the item into, place it and then update the available space blocks.
-            if let (Some((space_index, orientation, _)), Some(space)) = (smallest_waste, best_space) {
+            if let (Some((space_index, orientation, _)), Some(space)) = (least_leftover, best_space) {
                 let mut placed_item = item.clone();
                 placed_item.x = space.x;
                 placed_item.y = space.y;
@@ -146,12 +139,6 @@ impl BinPacker3D {
                 placed_item.rotate_z = orientation.rotate_z;
 
                 placed.push(placed_item.clone());
-                bin.items.push(placed_item.clone());
-
-                // Update the free spaces that intersect with the newly placed item
-
-                
-
 
                 free_spaces.remove(space_index);
 
@@ -168,6 +155,24 @@ impl BinPacker3D {
             placed,
             unplaced,
         }
+    }
+
+    // Checks if a box with given position and dimensions intersects with any item in a list
+    fn intersects_with_any(x: f64, y: f64, z: f64, width: f64, height: f64, depth: f64, items: &[Item]) -> bool {
+        items.iter().any(|other| Self::intersects(x, y, z, width, height, depth, other.x, other.y, other.z, other.width, other.height, other.depth))
+    }
+
+    // Checks if two 3D axis-aligned boxes intersect
+    // Returns true if they overlap, false if they don't
+    fn intersects(x1: f64, y1: f64, z1: f64, w1: f64, h1: f64, d1: f64, x2: f64, y2: f64, z2: f64, w2: f64, h2: f64, d2: f64) -> bool {
+        // Two boxes don't intersect if one is completely to the side of the other on any axis
+        // They intersect if none of these conditions are true:
+        let no_overlap_x = x1 + w1 <= x2 || x2 + w2 <= x1;
+        let no_overlap_y = y1 + h1 <= y2 || y2 + h2 <= y1;
+        let no_overlap_z = z1 + d1 <= z2 || z2 + d2 <= z1;
+
+        // If there's overlap on all three axes, the boxes intersect
+        !no_overlap_x && !no_overlap_y && !no_overlap_z
     }
 
     // Generates all unique axis-aligned orientations for an item by rotating it in 3D space
@@ -204,50 +209,95 @@ impl BinPacker3D {
         out
     }
 
-    //   TODO: Use collision detection to construct free spaces left/back as well
-    // Split the volume of a free 'Space' block into smaller blocks, surrounding a newly added item.
+    // Split a block of 'Space' up to three times, creating smaller blocks of leftover space surrounding an occupying item.
+    // Note that items are inserted at the bottom left corner, which is why we only ever need to define three new blocks 
+    // to the right, top, and front of the occupying item.
     // Returns a vector of Space objects.
-    fn split_space(space: &Space, reference_item: &Item) -> Vec<Space> {
-        let mut out = Vec::new();
+    fn split_space(space: &Space, occupied: &Item) -> Vec<Space> {
+        #[derive(Clone)]
+        enum Direction {
+            Right,
+            Top,
+            Front,
+        }
+        struct Subspace {
+            space: Space,
+            dir: Direction,
+        }
+        let mut subspaces: Vec<Subspace> = Vec::new();
 
-        let right = Space {
-            x: reference_item.x + reference_item.width,
-            y: reference_item.y,
-            z: reference_item.z,
-            width: space.width - reference_item.width,
+        // Max adjacent blocks
+        let max_right = Space {
+            x: occupied.x + occupied.width,
+            y: occupied.y,
+            z: occupied.z,
+            width: space.width - occupied.width,
             height: space.height,
             depth: space.depth,
         };
-
-        let top = Space {
-            x: reference_item.x,
-            y: reference_item.y + reference_item.height,
-            z: reference_item.z,
+        let max_top = Space {
+            x: occupied.x,
+            y: occupied.y + occupied.height,
+            z: occupied.z,
             width: space.width,
-            height: space.height - reference_item.height,
+            height: space.height - occupied.height,
             depth: space.depth,
         };
-
-        let front: Space = Space {
-            x: reference_item.x,
-            y: reference_item.y,
-            z: reference_item.z + reference_item.depth,
+        let max_front: Space = Space {
+            x: occupied.x,
+            y: occupied.y,
+            z: occupied.z + occupied.depth,
             width: space.width,
             height: space.height,
-            depth: space.depth - reference_item.depth,
+            depth: space.depth - occupied.depth,
         };
 
-        if right.width > 0.0 && right.height > 0.0 && right.depth > 0.0 {
-            out.push(right);
+        if max_right.width > 0.0 && max_right.height > 0.0 && max_right.depth > 0.0 {
+            subspaces.push(Subspace { space: max_right, dir: Direction::Right });
         }
-        if top.width > 0.0 && top.height > 0.0 && top.depth > 0.0 {
-            out.push(top);
+        if max_top.width > 0.0 && max_top.height > 0.0 && max_top.depth > 0.0 {
+            subspaces.push(Subspace { space: max_top, dir: Direction::Top });
         }
-        if front.width > 0.0 && front.height > 0.0 && front.depth > 0.0 {
-            out.push(front);
+        if max_front.width > 0.0 && max_front.height > 0.0 && max_front.depth > 0.0 {
+            subspaces.push(Subspace { space: max_front, dir: Direction::Front });
+        }
+        if subspaces.is_empty() { // No leftover space, return an empty vector
+            return Vec::new();
         }
 
-        out
+        // // Resolve any overlapping space
+        // // Prefer the combination that has the largest singular volume of space at each step
+        // subspaces.sort_by(|block_a, block_b| { 
+        //     let a = &block_a.space;
+        //     let b = &block_b.space;
+        //     let max_dim_a = a.width.max(a.height).max(a.depth);
+        //     let max_dim_b = b.width.max(b.height).max(b.depth);
+        //     max_dim_b.partial_cmp(&max_dim_a).unwrap()
+        // });
+
+        // let subtract_block_dims = |smaller: &mut Subspace, bigger_dir: &Direction, bigger_space: &Space| {
+        //     match bigger_dir {
+        //         Direction::Right => smaller.space.width -= bigger_space.width,
+        //         Direction::Front => smaller.space.depth -= bigger_space.depth,
+        //         Direction::Top => smaller.space.height -= bigger_space.height
+        //     }
+        // };
+
+        // if subspaces.get(1).is_some() { // Update dims to not overlap with the largest block
+        //     let block_1_dir = subspaces[0].dir.clone();
+        //     let block_1_space = subspaces[0].space.clone();
+        //     subtract_block_dims(&mut subspaces[1], &block_1_dir, &block_1_space);
+        // }
+        // if subspaces.get(2).is_some() { // Update dims to not overlap with both the largest and middle block
+        //     let block_1_dir = subspaces[0].dir.clone();
+        //     let block_1_space = subspaces[0].space.clone();
+        //     let block_2_dir = subspaces[1].dir.clone();
+        //     let block_2_space = subspaces[1].space.clone();
+        //     subtract_block_dims(&mut subspaces[2], &block_1_dir, &block_1_space);
+        //     subtract_block_dims(&mut subspaces[2], &block_2_dir, &block_2_space);
+        // }
+
+        subspaces.into_iter().map(|s| s.space).collect()
     }
 
     // 
@@ -281,4 +331,85 @@ impl BinPacker3D {
         merged
     }
 
+}
+
+
+// ----------------------------------------------------------------
+// Unit tests
+
+#[test]
+fn test_pack_all_items_in_bin() {
+    // Test data: 10x10x10 bin, three items that fit
+    let bin = Bin {
+        width: 10.0,
+        height: 10.0,
+        depth: 10.0,
+    };
+    let items: Vec<Item> = vec![
+        Item {
+            id: 0,
+            name: "item_1".to_string(),
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+            width: 5.0,
+            height: 5.0,
+            depth: 5.0,
+            rotate_x: 0.0,
+            rotate_y: 0.0,
+            rotate_z: 0.0,
+        },
+        Item {
+            id: 1,
+            name: "item_2".to_string(),
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+            width: 10.0,
+            height: 5.0,
+            depth: 10.0,
+            rotate_x: 0.0,
+            rotate_y: 0.0,
+            rotate_z: 0.0,
+        },
+        Item {
+            id: 2,
+            name: "item_3".to_string(),
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+            width: 10.0,
+            height: 5.0,
+            depth: 5.0,
+            rotate_x: 0.0,
+            rotate_y: 0.0,
+            rotate_z: 0.0,
+        },
+    ];
+
+    // Pack the items into the bin
+    let result = BinPacker3D::pack(bin, items);
+
+    // Assert that all items were placed
+    assert_eq!(result.placed.len(), 3, "Both items should be placed in the bin");
+    assert_eq!(result.unplaced.len(), 0, "No items should be unplaced");
+
+    // Verify that each placed item is within the bin bounds
+    for item in &result.placed {
+        assert!(
+            item.x + item.width <= result.bin.width,
+            "Item {} extends beyond bin width",
+            item.id
+        );
+        assert!(
+            item.y + item.height <= result.bin.height,
+            "Item {} extends beyond bin height",
+            item.id
+        );
+        assert!(
+            item.z + item.depth <= result.bin.depth,
+            "Item {} extends beyond bin depth",
+            item.id
+        );
+    }
 }
