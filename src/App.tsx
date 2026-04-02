@@ -30,7 +30,7 @@ function App() {
 
       <PackerControls bin={bin} items={items} onItemsPacked={updateItems} onBinPacked={updateBin} />
 
-      <PackerTable bin={bin} items={items} />
+      {/* <PackerTable bin={bin} items={items} /> */}
     </main>
   );
 }

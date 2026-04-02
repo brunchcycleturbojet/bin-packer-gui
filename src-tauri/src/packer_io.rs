@@ -23,9 +23,6 @@ pub fn parse_bin_json(json: &str) -> Result<(Bin, Vec<Item>), serde_json::Error>
         item.x = 0.0;
         item.y = 0.0;
         item.z = 0.0;
-        item.rotate_x = 0.0; 
-        item.rotate_y = 0.0;
-        item.rotate_z = 0.0;
         item
     }).collect();
 
@@ -43,9 +40,6 @@ pub fn convert_bin_json(result: PackResult) -> Result<String, serde_json::Error>
         width: item.width,
         height: item.height,
         depth: item.depth,
-        rotate_x: 0.0,
-        rotate_y: 0.0,
-        rotate_z: 0.0,
     }).collect();
 
     let packing_data = PackingDataOutput {

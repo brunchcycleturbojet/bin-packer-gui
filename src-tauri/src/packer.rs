@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::time::Instant;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -18,9 +19,11 @@ pub struct Item {
     pub width: f64,
     pub height: f64,
     pub depth: f64,
-    pub rotate_x: f64,
-    pub rotate_y: f64,
-    pub rotate_z: f64,
+}
+impl Item {
+    fn volume(&self) -> f64 {
+        self.width * self.height * self.depth
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -28,9 +31,6 @@ struct Orientation {
     width: f64,
     height: f64,
     depth: f64,
-    rotate_x: f64,
-    rotate_y: f64,
-    rotate_z: f64,
 }
 
 #[derive(Clone, Debug)]
@@ -52,7 +52,8 @@ pub struct PackResult {
     pub bin: Bin,
     pub placed: Vec<Item>,
     pub unplaced: Vec<Item>,
-    // TODO: Add time taken
+    pub time_to_pack: u128,
+    pub bin_usage_percentage: f64,
 }
 
 pub struct BinPacker3D;
@@ -68,6 +69,7 @@ impl BinPacker3D {
     // Packs items into one bin.
     // Returns a copy of the input bin, placed items with sorted position/rotations, and any unplaced items.
     pub fn pack(bin: Bin, items: Vec<Item>) -> PackResult {
+        let start_time = Instant::now();
         let mut unplaced = Vec::new();
         let mut placed = Vec::new();
 
@@ -86,11 +88,14 @@ impl BinPacker3D {
                 true
             }
         });
-        sorted_items.sort_by(|a, b| { // Largest dimension primary
+        sorted_items.sort_by(|a, b| { // Largest dimension second
             let max_dim_a = a.width.max(a.height).max(a.depth);
             let max_dim_b = b.width.max(b.height).max(b.depth);
             max_dim_b.partial_cmp(&max_dim_a).unwrap()
         });
+        sorted_items.sort_by(|a, b| // Largest volume first
+            b.volume().partial_cmp(&a.volume()).unwrap()
+        );
 
         // Define all the largest possible blocks of free 'Space' in the bin.
         // Each block is a candidate for placing an item into, and may overlap over each other.
@@ -109,15 +114,15 @@ impl BinPacker3D {
             let mut best_space: Option<Space> = None;
 
             // Rotate the item in all possible orientations, and place it in the space that leaves the largest leftover volume
-            for (si, space) in free_spaces.iter().enumerate() {
+            for (index, space) in free_spaces.iter().enumerate() {
                 for ori in Self::orientations(&item) {
                     // Check if item fits in space without intersecting with any other already packed items
                     if ori.width <= space.width && ori.height <= space.height && ori.depth <= space.depth
                         && !Self::intersects_with_any(space.x, space.y, space.z, ori.width, ori.height, ori.depth, &placed) {
 
-                        let leftover = space.width * space.height * space.depth - ori.width * ori.height * ori.depth;
-                        if least_leftover.is_none() || leftover < least_leftover.as_ref().unwrap().2 {
-                            least_leftover = Some((si, ori, leftover));
+                        let least_leftover_volume = space.width * space.height * space.depth - ori.width * ori.height * ori.depth;
+                        if least_leftover.is_none() || least_leftover_volume < least_leftover.as_ref().unwrap().2 {
+                            least_leftover = Some((index, ori, least_leftover_volume));
                             best_space = Some(space.clone());
                         }
                     }
@@ -134,15 +139,12 @@ impl BinPacker3D {
                 placed_item.width = orientation.width;
                 placed_item.height = orientation.height;
                 placed_item.depth = orientation.depth;
-                placed_item.rotate_x = orientation.rotate_x;
-                placed_item.rotate_y = orientation.rotate_y;
-                placed_item.rotate_z = orientation.rotate_z;
 
                 placed.push(placed_item.clone());
 
                 free_spaces.remove(space_index);
 
-                let new_spaces = Self::split_space(&space, &placed_item);
+                let new_spaces = Self::split_space(&space, &placed_item, &bin);
                 free_spaces = Self::clean_spaces([free_spaces, new_spaces].concat());
 
             } else { // No possible spaces found! Try the next item, which should be smaller than this one, since we process by descending volume.
@@ -150,10 +152,19 @@ impl BinPacker3D {
             }
         }
 
+        let time_taken = start_time.elapsed().as_millis();
+
+        // Calculate bin usage percentage
+        let bin_volume = bin.width * bin.height * bin.depth;
+        let used_volume: f64 = placed.iter().map(|item| item.width * item.height * item.depth).sum();
+        let bin_usage_percentage = (used_volume / bin_volume) * 100.0;
+
         PackResult {
             bin,
             placed,
             unplaced,
+            time_to_pack: time_taken,
+            bin_usage_percentage,
         }
     }
 
@@ -171,7 +182,6 @@ impl BinPacker3D {
         let no_overlap_y = y1 + h1 <= y2 || y2 + h2 <= y1;
         let no_overlap_z = z1 + d1 <= z2 || z2 + d2 <= z1;
 
-        // If there's overlap on all three axes, the boxes intersect
         !no_overlap_x && !no_overlap_y && !no_overlap_z
     }
 
@@ -183,15 +193,15 @@ impl BinPacker3D {
         let mut out = Vec::new();
 
         let triples = [
-            (dims[0], dims[1], dims[2], 0.0, 0.0, 0.0),
-            (dims[0], dims[2], dims[1], 0.0, 90.0, 0.0),
-            (dims[1], dims[0], dims[2], 90.0, 0.0, 0.0),
-            (dims[1], dims[2], dims[0], 0.0, 0.0, 90.0),
-            (dims[2], dims[0], dims[1], 90.0, 0.0, 90.0),
-            (dims[2], dims[1], dims[0], 0.0, 90.0, 90.0),
+            (dims[0], dims[1], dims[2]),
+            (dims[0], dims[2], dims[1]),
+            (dims[1], dims[0], dims[2]),
+            (dims[1], dims[2], dims[0]),
+            (dims[2], dims[0], dims[1]),
+            (dims[2], dims[1], dims[0]),
         ];
 
-        for (w, h, d, rx, ry, rz) in triples.iter() {
+        for (w, h, d) in triples.iter() {
             let key = format!("{}x{}x{}", w, h, d);
             if !orientations.contains(&key) {
                 orientations.insert(key);
@@ -199,9 +209,6 @@ impl BinPacker3D {
                     width: *w,
                     height: *h,
                     depth: *d,
-                    rotate_x: *rx,
-                    rotate_y: *ry,
-                    rotate_z: *rz,
                 });
             }
         }
@@ -213,7 +220,7 @@ impl BinPacker3D {
     // Note that items are inserted at the bottom left corner, which is why we only ever need to define three new blocks 
     // to the right, top, and front of the occupying item.
     // Returns a vector of Space objects.
-    fn split_space(space: &Space, occupied: &Item) -> Vec<Space> {
+    fn split_space(space: &Space, occupied: &Item, bin: &Bin) -> Vec<Space> {
         #[derive(Clone)]
         enum Direction {
             Right,
@@ -264,43 +271,10 @@ impl BinPacker3D {
         if subspaces.is_empty() { // No leftover space, return an empty vector
             return Vec::new();
         }
-
-        // // Resolve any overlapping space
-        // // Prefer the combination that has the largest singular volume of space at each step
-        // subspaces.sort_by(|block_a, block_b| { 
-        //     let a = &block_a.space;
-        //     let b = &block_b.space;
-        //     let max_dim_a = a.width.max(a.height).max(a.depth);
-        //     let max_dim_b = b.width.max(b.height).max(b.depth);
-        //     max_dim_b.partial_cmp(&max_dim_a).unwrap()
-        // });
-
-        // let subtract_block_dims = |smaller: &mut Subspace, bigger_dir: &Direction, bigger_space: &Space| {
-        //     match bigger_dir {
-        //         Direction::Right => smaller.space.width -= bigger_space.width,
-        //         Direction::Front => smaller.space.depth -= bigger_space.depth,
-        //         Direction::Top => smaller.space.height -= bigger_space.height
-        //     }
-        // };
-
-        // if subspaces.get(1).is_some() { // Update dims to not overlap with the largest block
-        //     let block_1_dir = subspaces[0].dir.clone();
-        //     let block_1_space = subspaces[0].space.clone();
-        //     subtract_block_dims(&mut subspaces[1], &block_1_dir, &block_1_space);
-        // }
-        // if subspaces.get(2).is_some() { // Update dims to not overlap with both the largest and middle block
-        //     let block_1_dir = subspaces[0].dir.clone();
-        //     let block_1_space = subspaces[0].space.clone();
-        //     let block_2_dir = subspaces[1].dir.clone();
-        //     let block_2_space = subspaces[1].space.clone();
-        //     subtract_block_dims(&mut subspaces[2], &block_1_dir, &block_1_space);
-        //     subtract_block_dims(&mut subspaces[2], &block_2_dir, &block_2_space);
-        // }
-
+        
         subspaces.into_iter().map(|s| s.space).collect()
     }
 
-    // 
     // Removes invalid spaces (with zero or negative dimensions) and deduplicates identical spaces
     // Returns a cleaned vector of valid, unique free spaces
     fn clean_spaces(spaces: Vec<Space>) -> Vec<Space> {
@@ -328,11 +302,11 @@ impl BinPacker3D {
                 merged.push(s);
             }
         }
+
         merged
     }
 
 }
-
 
 // ----------------------------------------------------------------
 // Unit tests
@@ -355,9 +329,6 @@ fn test_pack_all_items_in_bin() {
             width: 5.0,
             height: 5.0,
             depth: 5.0,
-            rotate_x: 0.0,
-            rotate_y: 0.0,
-            rotate_z: 0.0,
         },
         Item {
             id: 1,
@@ -368,9 +339,6 @@ fn test_pack_all_items_in_bin() {
             width: 10.0,
             height: 5.0,
             depth: 10.0,
-            rotate_x: 0.0,
-            rotate_y: 0.0,
-            rotate_z: 0.0,
         },
         Item {
             id: 2,
@@ -381,9 +349,6 @@ fn test_pack_all_items_in_bin() {
             width: 10.0,
             height: 5.0,
             depth: 5.0,
-            rotate_x: 0.0,
-            rotate_y: 0.0,
-            rotate_z: 0.0,
         },
     ];
 
@@ -412,4 +377,121 @@ fn test_pack_all_items_in_bin() {
             item.id
         );
     }
+}
+
+#[test]
+fn test_pack_1000_items() {
+    let bin = Bin {
+        width: 30.0,
+        height: 30.0,
+        depth: 30.0,
+    };
+
+    // Create three types of items with different dimensions
+    // Type 1: Small items (2x2x2)
+    // Type 2: Medium items (3x3x3)
+    // Type 3: Large items (4x4x4)
+
+    let mut items: Vec<Item> = Vec::new();
+    let mut item_id = 0;
+
+    // Add 333 small items
+    for _ in 0..333 {
+        items.push(Item {
+            id: item_id,
+            name: "small".to_string(),
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+            width: 2.0,
+            height: 2.0,
+            depth: 2.0,
+        });
+        item_id += 1;
+    }
+
+    // Add 334 medium items
+    for _ in 0..334 {
+        items.push(Item {
+            id: item_id,
+            name: "medium".to_string(),
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+            width: 3.0,
+            height: 3.0,
+            depth: 3.0,
+        });
+        item_id += 1;
+    }
+
+    // Add 333 large items
+    for _ in 0..333 {
+        items.push(Item {
+            id: item_id,
+            name: "large".to_string(),
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+            width: 4.0,
+            height: 4.0,
+            depth: 4.0,
+        });
+        item_id += 1;
+    }
+
+    assert_eq!(items.len(), 1000, "Should have created 1000 items total");
+
+    // Pack the items into the bin
+    let result = BinPacker3D::pack(bin, items);
+
+    // Print the packing time for performance analysis
+    println!("Container: {}x{}x{}", result.bin.width, result.bin.height, result.bin.depth);
+    println!("Packed {} items, {} items could not be packed", result.placed.len(), result.unplaced.len());
+    println!("Time taken to pack: {} ms", result.time_to_pack);
+    println!("Bin usage percentage: {:.2}%", result.bin_usage_percentage);
+
+    // // Verify that all items were placed
+    // assert!(
+    //     result.unplaced.len() == 0,
+    //     "All items should be placed in the bin, but {} were unplaced",
+    //     result.unplaced.len()
+    // );
+
+    // // Verify that each placed item is within the bin bounds
+    // for item in &result.placed {
+    //     assert!(
+    //         item.x >= 0.0 && item.x + item.width <= result.bin.width,
+    //         "Item {} x position out of bounds",
+    //         item.id
+    //     );
+    //     assert!(
+    //         item.y >= 0.0 && item.y + item.height <= result.bin.height,
+    //         "Item {} y position out of bounds",
+    //         item.id
+    //     );
+    //     assert!(
+    //         item.z >= 0.0 && item.z + item.depth <= result.bin.depth,
+    //         "Item {} z position out of bounds",
+    //         item.id
+    //     );
+    // }
+
+    // // Verify no items overlap
+    // for (i, item1) in result.placed.iter().enumerate() {
+    //     for item2 in result.placed.iter().skip(i + 1) {
+    //         let no_overlap_x = item1.x + item1.width <= item2.x || item2.x + item2.width <= item1.x;
+    //         let no_overlap_y =
+    //             item1.y + item1.height <= item2.y || item2.y + item2.height <= item1.y;
+    //         let no_overlap_z =
+    //             item1.z + item1.depth <= item2.z || item2.z + item2.depth <= item1.z;
+
+    //         assert!(
+    //             no_overlap_x || no_overlap_y || no_overlap_z,
+    //             "Items {} and {} overlap",
+    //             item1.id,
+    //             item2.id
+    //         );
+    //     }
+    // }
 }

@@ -79,7 +79,7 @@ function Bin3DView({ bin, items }: Bin3DViewProps) {
       <Text position={[0, 7, 40]} rotation={[0, Math.PI, 0]} fontSize={20} color="blue" anchorX="center" anchorY="middle">Z</Text>
 
       {/* Overlay for fake reflection, to fade it a little */}
-      <mesh position={[0, -0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh position={[0, -0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[1000, 1000]} />
         <meshBasicMaterial color='rgb(235, 232, 232)' transparent opacity={0.8} />
       </mesh>
@@ -106,9 +106,6 @@ function ItemBox({ item }: { item: Item }) {
     <mesh 
       key={item.id} 
       position={[item.x + item.width / 2, item.y + item.height / 2 + YOffsetFromFloor, item.z + item.depth / 2]}
-      rotateX={item.rotate_x}
-      rotateY={item.rotate_y}
-      rotateZ={item.rotate_z}
     >
       <RoundedBox
           args={[item.width, item.height, item.depth]} // Width, Height, Depth
@@ -147,8 +144,7 @@ function FloorMask({ children }: { children: React.ReactNode }) {
     }
   });
 
-  if (!visible) return null;
   return (
-    <>{children}</>
+    <group visible={visible}> {children} </group>
   );
 }

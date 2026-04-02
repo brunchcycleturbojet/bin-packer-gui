@@ -2,6 +2,7 @@ import "./style/App.css";
 
 import { invoke } from "@tauri-apps/api/core";
 import {Bin, Item} from "./BinData";
+import { useState } from "react";
 
 interface PackerControlsProps {
   bin: Bin;
@@ -11,6 +12,18 @@ interface PackerControlsProps {
 }
 
 function PackerControls({ bin, items, onItemsPacked, onBinPacked }: PackerControlsProps) {
+  const datasets = [
+    { name: "Simple Data", data: SimpleData },
+    { name: "Test Data", data: TestData },
+    { name: "HLJ Data", data: HLJData },
+    { name: "HLJ Rusty", data: HLJRusty },
+  ];
+
+  const [currentDatasetIndex, setCurrentDatasetIndex] = useState(0);
+
+  function cycleDataset() {
+    setCurrentDatasetIndex((prevIndex) => (prevIndex + 1) % datasets.length);
+  }
 
   // Run packing algo, position items inside bin
   async function pack_bin() {
@@ -23,7 +36,8 @@ function PackerControls({ bin, items, onItemsPacked, onBinPacked }: PackerContro
     //   items: items,
     // };
 
-    const payload = TestData;
+    const payload = datasets[currentDatasetIndex].data;
+    
 
     const json = JSON.stringify(payload);
     const result: string = await invoke("pack_bin", { json });
@@ -43,15 +57,20 @@ function PackerControls({ bin, items, onItemsPacked, onBinPacked }: PackerContro
   }
 
   return (
-    <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          pack_bin();
-        }}
-      >
-        <button type="submit">Pack</button>
-    </form>
+    <span>
+      <h2>{datasets[currentDatasetIndex].name}</h2>
+      <form
+          className="row"
+          onSubmit={(e) => {
+            e.preventDefault();
+            pack_bin();
+          }}
+        >
+          <button type="submit">Pack</button>
+          <button type="button" onClick={cycleDataset}>Next Dataset</button>
+      </form>
+    </span>
+
   );
 }
 
@@ -73,9 +92,6 @@ const SimpleData = {
       "width": 2.0,
       "height": 1.0,
       "depth": 3.0,
-      "rotate_x": 0,
-      "rotate_y": 0,
-      "rotate_z": 0,
     },
     {
       "id": 1,
@@ -86,9 +102,6 @@ const SimpleData = {
       "width": 1.0,
       "height": 3.0,
       "depth": 2.0,
-      "rotate_x": 0,
-      "rotate_y": 0,
-      "rotate_z": 0,
     },
     {
       "id": 2,
@@ -99,9 +112,6 @@ const SimpleData = {
       "width": 1.0,
       "height": 1.0,
       "depth": 5.0,
-      "rotate_x": 0,
-      "rotate_y": 0,
-      "rotate_z": 0,
     },
     {
       "id": 3,
@@ -112,9 +122,6 @@ const SimpleData = {
       "width": 1.0,
       "height": 1.0,
       "depth": 4.0,
-      "rotate_x": 0,
-      "rotate_y": 0,
-      "rotate_z": 0,
     },
   ]
 };
@@ -135,9 +142,6 @@ const TestData = {
       "width": 1,
       "height": 0.5,
       "depth": 1,
-      "rotate_x": 0,
-      "rotate_y": 0,
-      "rotate_z": 0,
     },
     {
       "id": 1,
@@ -148,9 +152,6 @@ const TestData = {
       "width": 2,
       "height": 1,
       "depth": 1,
-      "rotate_x": 0,
-      "rotate_y": 0,
-      "rotate_z": 0,
     },
     {
       "id": 2,
@@ -161,9 +162,6 @@ const TestData = {
       "width": 1,
       "height": 0.4,
       "depth": 1,
-      "rotate_x": 0,
-      "rotate_y": 0,
-      "rotate_z": 0,
     },
     {
       "id": 3,
@@ -174,9 +172,6 @@ const TestData = {
       "width": 1,
       "height": 1,
       "depth": 1,
-      "rotate_x": 0,
-      "rotate_y": 0,
-      "rotate_z": 0,
     },
     {
       "id": 4,
@@ -187,9 +182,6 @@ const TestData = {
       "width": 3,
       "height": 0.2,
       "depth": 1,
-      "rotate_x": 0,
-      "rotate_y": 0,
-      "rotate_z": 0,
     },
   ]
 };
@@ -210,9 +202,6 @@ const HLJData = {
       "width": 40,
       "height": 14,
       "depth": 33,
-      "rotate_x": 0,
-      "rotate_y": 0,
-      "rotate_z": 0,
     },
     {
       "id": 1,
@@ -223,9 +212,6 @@ const HLJData = {
       "width": 30,
       "height": 11,
       "depth": 19,
-      "rotate_x": 0,
-      "rotate_y": 0,
-      "rotate_z": 0,
     },
     {
       "id": 2,
@@ -236,9 +222,6 @@ const HLJData = {
       "width": 30,
       "height": 12,
       "depth": 21,
-      "rotate_x": 0,
-      "rotate_y": 0,
-      "rotate_z": 0,
     },
     {
       "id": 3,
@@ -249,9 +232,36 @@ const HLJData = {
       "width": 30,
       "height": 7,
       "depth": 19,
-      "rotate_x": 0,
-      "rotate_y": 0,
-      "rotate_z": 0,
+    },
+        {
+      "id": 4,
+      "name": "gqux",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 30,
+      "height": 7,
+      "depth": 19,
+    },
+            {
+      "id": 5,
+      "name": "gqux",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 30,
+      "height": 7,
+      "depth": 19,
+    },
+                {
+      "id": 6,
+      "name": "gqux",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 30,
+      "height": 7,
+      "depth": 19,
     },
   ]
 };
@@ -272,9 +282,7 @@ const HLJRusty = {
       "width": 40,
       "height": 14,
       "depth": 33,
-      "rotate_x": 0,
-      "rotate_y": 0,
-      "rotate_z": 0,
+
     },
     {
       "id": 0,
@@ -285,9 +293,6 @@ const HLJRusty = {
       "width": 40,
       "height": 14,
       "depth": 33,
-      "rotate_x": 0,
-      "rotate_y": 0,
-      "rotate_z": 0,
     },
     {
       "id": 2,
@@ -298,9 +303,6 @@ const HLJRusty = {
       "width": 23,
       "height": 14,
       "depth": 4,
-      "rotate_x": 0,
-      "rotate_y": 0,
-      "rotate_z": 0,
     },
   ]
 };

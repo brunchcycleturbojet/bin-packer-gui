@@ -23,7 +23,4 @@ export type Item = {
   width: number,
   height: number,
   depth: number,
-  rotate_x: number,
-  rotate_y: number,
-  rotate_z: number,
 }
