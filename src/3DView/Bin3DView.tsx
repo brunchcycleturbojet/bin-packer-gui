@@ -33,7 +33,7 @@ function Bin3DView({ bin, items }: Bin3DViewProps) {
 
   // Generate boxes based on items
   // Place sequentially to the side of the bin, in order of size
-  function renderUnpackedBoxes() {
+  function renderPackedBoxes() {
     if (Array.isArray(items) && items.length !== 0) {
       return items.map((item) => (
         <ItemBox key={item.id} item={item} />
@@ -54,7 +54,7 @@ function Bin3DView({ bin, items }: Bin3DViewProps) {
       <ambientLight intensity={3.0} />
 
       {renderBin()}
-      {renderUnpackedBoxes()}
+      {renderPackedBoxes()}
 
       <Grid 
         renderOrder={1} 
@@ -87,7 +87,7 @@ function Bin3DView({ bin, items }: Bin3DViewProps) {
       <FloorMask>
         <group scale={[1, -1, 1]} position={[0, -0.02, 0]}>
           {renderBin()}
-          {renderUnpackedBoxes()}
+          {renderPackedBoxes()}
         </group>
       </FloorMask>
     </Canvas>

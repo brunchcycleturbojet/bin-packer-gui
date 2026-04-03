@@ -16,6 +16,7 @@ pub struct Item {
     pub x: f64,
     pub y: f64,
     pub z: f64,
+    // TODO: Add units of measurement, configurable per item
     pub width: f64,
     pub height: f64,
     pub depth: f64,
@@ -88,14 +89,14 @@ impl BinPacker3D {
                 true
             }
         });
-        sorted_items.sort_by(|a, b| { // Largest dimension second
+        sorted_items.sort_by(|a, b| // Largest volume second
+            b.volume().partial_cmp(&a.volume()).unwrap()
+        );
+        sorted_items.sort_by(|a, b| { // Largest dimension first
             let max_dim_a = a.width.max(a.height).max(a.depth);
             let max_dim_b = b.width.max(b.height).max(b.depth);
             max_dim_b.partial_cmp(&max_dim_a).unwrap()
         });
-        sorted_items.sort_by(|a, b| // Largest volume first
-            b.volume().partial_cmp(&a.volume()).unwrap()
-        );
 
         // Define all the largest possible blocks of free 'Space' in the bin.
         // Each block is a candidate for placing an item into, and may overlap over each other.
@@ -110,28 +111,45 @@ impl BinPacker3D {
         }];
 
         for item in sorted_items {
-            let mut least_leftover: Option<(usize, Orientation, f64)> = None;
-            let mut best_space: Option<Space> = None;
+            let mut least_leftover: Option<f64> = None;
+            let mut best_fit: Option<(usize, Orientation, Space)> = None;
 
-            // Rotate the item in all possible orientations, and place it in the space that leaves the largest leftover volume
+            // Find a space to fit the item
+            let mut space_found = false;
             for (index, space) in free_spaces.iter().enumerate() {
                 for ori in Self::orientations(&item) {
                     // Check if item fits in space without intersecting with any other already packed items
                     if ori.width <= space.width && ori.height <= space.height && ori.depth <= space.depth
                         && !Self::intersects_with_any(space.x, space.y, space.z, ori.width, ori.height, ori.depth, &placed) {
 
-                        let least_leftover_volume = space.width * space.height * space.depth - ori.width * ori.height * ori.depth;
-                        if least_leftover.is_none() || least_leftover_volume < least_leftover.as_ref().unwrap().2 {
-                            least_leftover = Some((index, ori, least_leftover_volume));
-                            best_space = Some(space.clone());
+                        // 1. Prefer orientations where items can stack
+                        if (space.width >= ori.width * 2.0) || (space.height >= ori.height * 2.0) || (space.depth >= ori.depth * 2.0) { 
+                            best_fit = Some((index, ori, space.clone()));
+                            space_found = true;
+                            break;
+                        }
+                        
+                        // 2. Prefer exact fits
+                        if (eq_tol(space.width, ori.width)) || eq_tol(space.height, ori.height) || eq_tol(space.depth, ori.depth) {
+                            best_fit = Some((index, ori, space.clone()));
+                            space_found = true;
+                            break;
+                        }
+
+                        // 3. Use the fit with the least leftover volume
+                        let leftover_volume = space.width * space.height * space.depth - ori.width * ori.height * ori.depth;
+                        if least_leftover.is_none() || leftover_volume < least_leftover.unwrap() {
+                            least_leftover = Some(leftover_volume);
+                            best_fit = Some((index, ori, space.clone()));
                         }
                     }
-                    // else: Move onto the next orientation, because it doesn't fit this way.
                 }
+
+                if space_found { break; }
             }
 
-            // Found the smallest space to fit the item into, place it and then update the available space blocks.
-            if let (Some((space_index, orientation, _)), Some(space)) = (least_leftover, best_space) {
+            if let Some((space_index, orientation, space)) = best_fit {
+                // Space found, place the item
                 let mut placed_item = item.clone();
                 placed_item.x = space.x;
                 placed_item.y = space.y;
@@ -140,14 +158,16 @@ impl BinPacker3D {
                 placed_item.height = orientation.height;
                 placed_item.depth = orientation.depth;
 
+                // Place the object and consume the space
                 placed.push(placed_item.clone());
-
                 free_spaces.remove(space_index);
 
-                let new_spaces = Self::split_space(&space, &placed_item, &bin);
+                // Update space blocks
+                let new_spaces = Self::split_space(&space, &placed_item, &free_spaces);
                 free_spaces = Self::clean_spaces([free_spaces, new_spaces].concat());
 
-            } else { // No possible spaces found! Try the next item, which should be smaller than this one, since we process by descending volume.
+            } else { 
+                // No possible spaces found! Try the next item.
                 unplaced.push(item);
             }
         }
@@ -220,7 +240,7 @@ impl BinPacker3D {
     // Note that items are inserted at the bottom left corner, which is why we only ever need to define three new blocks 
     // to the right, top, and front of the occupying item.
     // Returns a vector of Space objects.
-    fn split_space(space: &Space, occupied: &Item, bin: &Bin) -> Vec<Space> {
+    fn split_space(space: &Space, occupied: &Item, spaces: &Vec<Space>) -> Vec<Space> {
         #[derive(Clone)]
         enum Direction {
             Right,
@@ -259,53 +279,111 @@ impl BinPacker3D {
             depth: space.depth - occupied.depth,
         };
 
-        if max_right.width > 0.0 && max_right.height > 0.0 && max_right.depth > 0.0 {
-            subspaces.push(Subspace { space: max_right, dir: Direction::Right });
+        // Check if the new space is actually part of a larger contiguous block
+        // let is_subset = |candidate: &Space| {
+        //     for space in spaces { 
+        //         // Case 1: Shared width and height (differ in depth/z-axis)
+        //         if eq_tol(space.width, candidate.width) && eq_tol(space.height, candidate.height) 
+        //             && eq_tol(space.x, candidate.x) && eq_tol(space.y, candidate.y) 
+        //             // && candidate.z <= space.z + space.depth || candidate.z >= space.z - space.depth
+        //         {
+        //             return true;
+        //         }
+                
+        //         // Case 2: Shared width and depth (differ in height/y-axis)
+        //         if eq_tol(space.width, candidate.width) && eq_tol(space.depth, candidate.depth) 
+        //             && eq_tol(space.x, candidate.x) && eq_tol(space.z, candidate.z)
+        //             // && candidate.y <= space.y + space.height || candidate.y >= space.y - candidate.height
+        //         {
+        //             return true;
+        //         }
+                
+        //         // Case 3: Shared height and depth (differ in width/x-axis)
+        //         if eq_tol(space.height, candidate.height) && eq_tol(space.depth, candidate.depth) 
+        //             && eq_tol(space.y, candidate.y) && eq_tol(space.z, candidate.z)
+        //             // && candidate.x <= space.x + space.width || candidate.x >= space.x - candidate.width
+        //         {
+        //             return true;
+        //         }
+        //     }
+        //     false
+        // };
+        // if max_right.volume() > 0.0 {
+        //     if !is_subset(&max_right) {
+        //         subspaces.push(Subspace { space: max_right, dir: Direction::Right });
+        //     }
+        // }
+        // if max_top.volume() > 0.0 {
+        //     if !is_subset(&max_top) {
+        //         subspaces.push(Subspace { space: max_top, dir: Direction::Top });
+        //     }
+        // }
+        // if max_front.volume() > 0.0 {
+        //     if !is_subset(&max_front) {
+        //         subspaces.push(Subspace { space: max_front, dir: Direction::Front });
+        //     }
+        // }
+        // if subspaces.is_empty() { // No leftover space, return an empty vector
+        //     return Vec::new();
+        // }
+
+        if max_right.volume() > 0.0 {
+                subspaces.push(Subspace { space: max_right, dir: Direction::Right });
         }
-        if max_top.width > 0.0 && max_top.height > 0.0 && max_top.depth > 0.0 {
-            subspaces.push(Subspace { space: max_top, dir: Direction::Top });
+        if max_top.volume() > 0.0 {
+                subspaces.push(Subspace { space: max_top, dir: Direction::Top });
         }
-        if max_front.width > 0.0 && max_front.height > 0.0 && max_front.depth > 0.0 {
-            subspaces.push(Subspace { space: max_front, dir: Direction::Front });
+        if max_front.volume() > 0.0 {
+                subspaces.push(Subspace { space: max_front, dir: Direction::Front });
         }
         if subspaces.is_empty() { // No leftover space, return an empty vector
             return Vec::new();
         }
-        
+
         subspaces.into_iter().map(|s| s.space).collect()
     }
 
     // Removes invalid spaces (with zero or negative dimensions) and deduplicates identical spaces
     // Returns a cleaned vector of valid, unique free spaces
     fn clean_spaces(spaces: Vec<Space>) -> Vec<Space> {
+
+        // Remove any space with 0 volume
         let filtered: Vec<Space> = spaces
             .into_iter()
             .filter(|s| s.width > 0.0 && s.height > 0.0 && s.depth > 0.0)
             .collect();
 
-        let mut merged: Vec<Space> = Vec::new();
-        for s in filtered {
-            let mut merged_into_existing = false;
-            for m in &merged {
-                if s.x == m.x
-                    && s.y == m.y
-                    && s.z == m.z
-                    && s.width == m.width
-                    && s.height == m.height
-                    && s.depth == m.depth
-                {
-                    merged_into_existing = true;
-                    break;
-                }
-            }
-            if !merged_into_existing {
-                merged.push(s);
+        // Deduplicate identical spaces
+        let mut deduplicated: Vec<Space> = Vec::new();
+        let mut unique_spaces = HashSet::new();
+        for space in filtered {
+            let key = format!(
+                "{}.{}.{},{}x{}x{}", 
+                space.x, space.y, space.z,
+                space.width, space.height, space.depth
+            );
+            if !unique_spaces.contains(&key) {
+                unique_spaces.insert(key);
+                deduplicated.push(space);
             }
         }
 
-        merged
+        // Arrange by smallest space first
+        deduplicated.sort_by(|a, b| {
+            a.y.partial_cmp(&b.y).unwrap()
+        });
+
+        deduplicated
     }
 
+}
+
+// Helper function: Compare f64 with an acceptable tolerance for packing purposes.
+// TODO: Justify tolerance value. Currently an arbitrary value, but the idea is to use metric cm as the standard.
+//  The value doesn't need to be very precise, because package measurements probably aren't that precise anyways.
+fn eq_tol(a: f64, b:f64) -> bool {
+    const TOLERANCE: f64 = 0.001;
+    (a - b).abs() <= TOLERANCE
 }
 
 // ----------------------------------------------------------------
