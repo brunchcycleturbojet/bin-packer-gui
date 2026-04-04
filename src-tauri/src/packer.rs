@@ -25,6 +25,26 @@ impl Item {
     fn volume(&self) -> f64 {
         self.width * self.height * self.depth
     }
+
+    fn size(&self) -> [f64; 3] {
+        [self.width, self.height, self.depth]
+    }
+}
+
+struct Block {
+    pub position: Vec<Dimension>,
+    pub size: Vec<Dimension>
+}
+#[derive(Clone, Debug)]
+struct Dimension {
+    pub length: f64,
+    pub axis: AxisSize
+}
+#[derive(Clone, Debug, PartialEq)]
+enum AxisSize {
+    Width,
+    Height,
+    Depth
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -46,6 +66,9 @@ struct Space {
 impl Space {
     fn volume(&self) -> f64 {
         self.width * self.height * self.depth
+    }
+    fn size(&self) -> [f64; 3] {
+        [self.width, self.height, self.depth]
     }
 }
 
@@ -115,37 +138,12 @@ impl BinPacker3D {
             let mut best_fit: Option<(usize, Orientation, Space)> = None;
 
             // Find a space to fit the item
-            let mut space_found = false;
             for (index, space) in free_spaces.iter().enumerate() {
-                for ori in Self::orientations(&item) {
-                    // Check if item fits in space without intersecting with any other already packed items
-                    if ori.width <= space.width && ori.height <= space.height && ori.depth <= space.depth
-                        && !Self::intersects_with_any(space.x, space.y, space.z, ori.width, ori.height, ori.depth, &placed) {
 
-                        // 1. Prefer orientations where items can stack
-                        if (space.width >= ori.width * 2.0) || (space.height >= ori.height * 2.0) || (space.depth >= ori.depth * 2.0) { 
-                            best_fit = Some((index, ori, space.clone()));
-                            space_found = true;
-                            break;
-                        }
-                        
-                        // 2. Prefer exact fits
-                        if (eq_tol(space.width, ori.width)) || eq_tol(space.height, ori.height) || eq_tol(space.depth, ori.depth) {
-                            best_fit = Some((index, ori, space.clone()));
-                            space_found = true;
-                            break;
-                        }
-
-                        // 3. Use the fit with the least leftover volume
-                        let leftover_volume = space.width * space.height * space.depth - ori.width * ori.height * ori.depth;
-                        if least_leftover.is_none() || leftover_volume < least_leftover.unwrap() {
-                            least_leftover = Some(leftover_volume);
-                            best_fit = Some((index, ori, space.clone()));
-                        }
-                    }
+                if fits(space, &item) {
+                    best_fit = Some((index, Self::best_orientation(space, &item), space.clone()));
+                    break;
                 }
-
-                if space_found { break; }
             }
 
             if let Some((space_index, orientation, space)) = best_fit {
@@ -176,7 +174,7 @@ impl BinPacker3D {
 
         // Calculate bin usage percentage
         let bin_volume = bin.width * bin.height * bin.depth;
-        let used_volume: f64 = placed.iter().map(|item| item.width * item.height * item.depth).sum();
+        let used_volume: f64 = placed.iter().map(|item| item.volume()).sum();
         let bin_usage_percentage = (used_volume / bin_volume) * 100.0;
 
         PackResult {
@@ -236,6 +234,145 @@ impl BinPacker3D {
         out
     }
 
+    fn best_orientation(space: &Space, item: &Item) -> Orientation {
+
+        fn item_to_dimensions(item: &Item) -> Vec<Dimension> {
+            vec![
+                Dimension {
+                    length: item.width,
+                    axis: AxisSize::Width,
+                },
+                Dimension {
+                    length: item.height,
+                    axis: AxisSize::Height,
+                },
+                Dimension {
+                    length: item.depth,
+                    axis: AxisSize::Depth,
+                },
+            ]
+        }
+        fn space_to_dimensions(space: &Space) -> Vec<Dimension> {
+            vec![
+                Dimension {
+                    length: space.width,
+                    axis: AxisSize::Width,
+                },
+                Dimension {
+                    length: space.height,
+                    axis: AxisSize::Height,
+                },
+                Dimension {
+                    length: space.depth,
+                    axis: AxisSize::Depth,
+                },
+            ]
+        }
+
+        let mut container: Vec<Dimension> = space_to_dimensions(space);
+        let mut to_pack: Vec<Dimension> = item_to_dimensions(item);
+
+        // Sort dimensions ascending (shortest first)
+        container.sort_by(|a, b| a.length.partial_cmp(&b.length).unwrap());
+        to_pack.sort_by(|a, b| a.length.partial_cmp(&b.length).unwrap());
+
+        let longest_item_dim = to_pack[2].length;
+        let mut side_1: Option<usize> = None;
+
+        let mut dim_1 = to_pack[0].clone();
+        let mut dim_2 = to_pack[1].clone();
+        let mut dim_3 = to_pack[2].clone();
+
+        // Choose the shortest side of the box we can stack the item twice on its longest side
+        for (i, b_dim) in container.iter().enumerate() {
+            if b_dim.length >= longest_item_dim * 2.0 {
+
+                println!("Stacking item on side {:?} with length {}, since it can fit two items of longest dimension {}", container[i].axis, b_dim.length, longest_item_dim);
+
+                side_1 = Some(i);
+                dim_3.axis = container[i].axis.clone();
+                break;
+            } else if eq_tol(b_dim.length, longest_item_dim) {
+
+                println!("Stacking item on side {:?} with length {}, since it can fit the longest dimension {} with an exact fit", container[i].axis, b_dim.length, longest_item_dim);
+
+                // Exact fit, move to next block
+                side_1 = Some(i);
+                dim_3.axis = container[i].axis.clone();
+                break;
+            }
+        }
+
+        // If no suitable side was found, try fitting the item once
+        if side_1.is_none() {
+            for (i, b_dim) in container.iter().enumerate() {
+                // If we can't stack twice, choose the shortest side we can stack the item once on
+                if b_dim.length >= longest_item_dim {
+
+                    println!("Stacking item on side {:?} with length {}, since it can fit the longest dimension {}", container[i].axis, b_dim.length, longest_item_dim);
+
+                    side_1 = Some(i);
+                    dim_3.axis = container[i].axis.clone();
+                    break;
+                }
+            }
+        }
+
+        let (side_2, side_3) = Self::get_side_2_side_3(&to_pack, &container, side_1.unwrap());
+        dim_2.axis = container[side_2].axis.clone();
+        dim_1.axis = container[side_3].axis.clone();
+
+        let unarranged = vec![dim_1, dim_2, dim_3];
+        let mut orientation = vec![0.0; 3];
+        for dim in unarranged.iter() {
+            match dim.axis {
+                AxisSize::Width => orientation[0] = dim.length,
+                AxisSize::Height => orientation[1] = dim.length,
+                AxisSize::Depth => orientation[2] = dim.length,
+            }
+        }
+
+        println!("Best orientation for item {}x{}x{} in space {}x{}x{} is {}x{}x{}", 
+            item.width, item.height, item.depth, 
+            space.width, space.height, space.depth,
+            orientation[0], orientation[1], orientation[2]
+        );
+
+        Orientation {
+            width: orientation[0],
+            height: orientation[1],
+            depth: orientation[2],
+        }
+    }
+
+    // Determines the rotation method by checking if the item MUST be rotated in a specific direction
+    // based on size constraints, then returns the sides that leave the largest bulk volume in the box.
+    //
+    // Args:
+    //   item_dims: Vec<Dimension> representing item dimensions (width, height, depth)
+    //   box_dims: Vec<Dimension> representing box/container dimensions
+    //   side_1: usize - index of the side of the box the item is placed along
+    //
+    // Returns: (usize, usize) - indexes of the box sides the items will be placed along
+    fn get_side_2_side_3(item_dims: &[Dimension], box_dims: &[Dimension], side_1: usize) -> (usize, usize) {
+        let side_2: usize;
+        let side_3: usize;
+
+        // Safely handle array indexing with bounds checking
+        if side_1 > 0 && item_dims[1].length > box_dims[side_1 - 1].length {
+            side_2 = if side_1 >= 2 { side_1 - 2 } else { side_1 + 1 };
+            side_3 = if side_1 > 0 { side_1 - 1 } else { 2 };
+        } else if side_1 >= 2 && item_dims[1].length > box_dims[side_1 - 2].length {
+            side_2 = if side_1 > 0 { side_1 - 1 } else { 2 };
+            side_3 = if side_1 >= 2 { side_1 - 2 } else { side_1 + 1 };
+        } else {
+            side_2 = (side_1 + 1) % 3;
+            side_3 = (side_1 + 2) % 3;
+        }
+
+        (side_2, side_3)
+    }
+
     // Split a block of 'Space' up to three times, creating smaller blocks of leftover space surrounding an occupying item.
     // Note that items are inserted at the bottom left corner, which is why we only ever need to define three new blocks 
     // to the right, top, and front of the occupying item.
@@ -279,6 +416,7 @@ impl BinPacker3D {
             depth: space.depth - occupied.depth,
         };
 
+        // WIP: Reduce overlapping spaces
         // Check if the new space is actually part of a larger contiguous block
         // let is_subset = |candidate: &Space| {
         //     for space in spaces { 
@@ -326,6 +464,33 @@ impl BinPacker3D {
         // if subspaces.is_empty() { // No leftover space, return an empty vector
         //     return Vec::new();
         // }
+
+
+        // TEST: No overlap blocks, todo: optimise decision logic between front/right blocks
+        let max_right = Space {
+            x: occupied.x + occupied.width,
+            y: occupied.y,
+            z: occupied.z,
+            width: space.width - occupied.width,
+            height: space.height,
+            depth: occupied.depth,
+        };
+        let max_top = Space {
+            x: occupied.x,
+            y: occupied.y + occupied.height,
+            z: occupied.z,
+            width: occupied.width,
+            height: space.height - occupied.height,
+            depth: occupied.depth,
+        };
+        let max_front: Space = Space {
+            x: occupied.x,
+            y: occupied.y,
+            z: occupied.z + occupied.depth,
+            width: space.width,
+            height: space.height,
+            depth: space.depth - occupied.depth,
+        };
 
         if max_right.volume() > 0.0 {
                 subspaces.push(Subspace { space: max_right, dir: Direction::Right });
@@ -378,12 +543,27 @@ impl BinPacker3D {
 
 }
 
-// Helper function: Compare f64 with an acceptable tolerance for packing purposes.
+// Compare f64 with an acceptable tolerance for packing purposes.
 // TODO: Justify tolerance value. Currently an arbitrary value, but the idea is to use metric cm as the standard.
 //  The value doesn't need to be very precise, because package measurements probably aren't that precise anyways.
 fn eq_tol(a: f64, b:f64) -> bool {
     const TOLERANCE: f64 = 0.001;
     (a - b).abs() <= TOLERANCE
+}
+
+// Check that an Item can fit into a Space, based on their dimensions
+fn fits(container: &Space, to_fit: &Item) -> bool {
+    let mut sorted_size_a = container.size();
+    sorted_size_a.sort_by( |a, b|{
+        b.partial_cmp(&a).unwrap() }); 
+
+    let mut sorted_size_b = to_fit.size();
+    sorted_size_b.sort_by( |a, b|{
+        b.partial_cmp(&a).unwrap() }); 
+
+    sorted_size_a[0] >= sorted_size_b[0] && 
+    sorted_size_a[1] >= sorted_size_b[1] && 
+    sorted_size_a[2] >= sorted_size_b[2]
 }
 
 // ----------------------------------------------------------------
