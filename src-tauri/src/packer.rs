@@ -134,19 +134,20 @@ impl BinPacker3D {
         }];
 
         for item in sorted_items {
-            let mut least_leftover: Option<f64> = None;
-            let mut best_fit: Option<(usize, Orientation, Space)> = None;
+            let mut best_fit: Option<(usize, Orientation, Space, Vec<Space>)> = None;
 
             // Find a space to fit the item
             for (index, space) in free_spaces.iter().enumerate() {
 
                 if fits(space, &item) {
-                    best_fit = Some((index, Self::best_orientation(space, &item), space.clone()));
+                    let (orientation, remainder) = Self::best_orientation(space, &item);
+
+                    best_fit = Some((index, orientation, space.clone(), remainder));
                     break;
                 }
             }
 
-            if let Some((space_index, orientation, space)) = best_fit {
+            if let Some((space_index, orientation, space, remainder)) = best_fit {
                 // Space found, place the item
                 let mut placed_item = item.clone();
                 placed_item.x = space.x;
@@ -161,8 +162,9 @@ impl BinPacker3D {
                 free_spaces.remove(space_index);
 
                 // Update space blocks
-                let new_spaces = Self::split_space(&space, &placed_item, &free_spaces);
-                free_spaces = Self::clean_spaces([free_spaces, new_spaces].concat());
+                // let new_spaces = split_space(&space, &placed_item, &free_spaces);
+                // free_spaces = Self::clean_spaces([free_spaces, new_spaces].concat());
+                free_spaces = Self::clean_spaces([free_spaces, remainder].concat());
 
             } else { 
                 // No possible spaces found! Try the next item.
@@ -186,55 +188,7 @@ impl BinPacker3D {
         }
     }
 
-    // Checks if a box with given position and dimensions intersects with any item in a list
-    fn intersects_with_any(x: f64, y: f64, z: f64, width: f64, height: f64, depth: f64, items: &[Item]) -> bool {
-        items.iter().any(|other| Self::intersects(x, y, z, width, height, depth, other.x, other.y, other.z, other.width, other.height, other.depth))
-    }
-
-    // Checks if two 3D axis-aligned boxes intersect
-    // Returns true if they overlap, false if they don't
-    fn intersects(x1: f64, y1: f64, z1: f64, w1: f64, h1: f64, d1: f64, x2: f64, y2: f64, z2: f64, w2: f64, h2: f64, d2: f64) -> bool {
-        // Two boxes don't intersect if one is completely to the side of the other on any axis
-        // They intersect if none of these conditions are true:
-        let no_overlap_x = x1 + w1 <= x2 || x2 + w2 <= x1;
-        let no_overlap_y = y1 + h1 <= y2 || y2 + h2 <= y1;
-        let no_overlap_z = z1 + d1 <= z2 || z2 + d2 <= z1;
-
-        !no_overlap_x && !no_overlap_y && !no_overlap_z
-    }
-
-    // Generates all unique axis-aligned orientations for an item by rotating it in 3D space
-    // Returns up to 6 different orientations (some may be identical if item is symmetric)
-    fn orientations(item: &Item) -> Vec<Orientation> {
-        let dims = [item.width, item.height, item.depth];
-        let mut orientations = HashSet::new();
-        let mut out = Vec::new();
-
-        let triples = [
-            (dims[0], dims[1], dims[2]),
-            (dims[0], dims[2], dims[1]),
-            (dims[1], dims[0], dims[2]),
-            (dims[1], dims[2], dims[0]),
-            (dims[2], dims[0], dims[1]),
-            (dims[2], dims[1], dims[0]),
-        ];
-
-        for (w, h, d) in triples.iter() {
-            let key = format!("{}x{}x{}", w, h, d);
-            if !orientations.contains(&key) {
-                orientations.insert(key);
-                out.push(Orientation {
-                    width: *w,
-                    height: *h,
-                    depth: *d,
-                });
-            }
-        }
-
-        out
-    }
-
-    fn best_orientation(space: &Space, item: &Item) -> Orientation {
+    fn best_orientation(space: &Space, item: &Item) -> (Orientation, Vec<Space>) {
 
         fn item_to_dimensions(item: &Item) -> Vec<Dimension> {
             vec![
@@ -269,8 +223,10 @@ impl BinPacker3D {
             ]
         }
 
-        let mut container: Vec<Dimension> = space_to_dimensions(space);
+        let mut space_dims = [space.width, space.height, space.depth];
+        let mut container: Vec<Dimension> = space_to_dimensions(&space);
         let mut to_pack: Vec<Dimension> = item_to_dimensions(item);
+        let mut remainder_blocks: Vec<Space> = Vec::new();
 
         // Sort dimensions ascending (shortest first)
         container.sort_by(|a, b| a.length.partial_cmp(&b.length).unwrap());
@@ -279,49 +235,201 @@ impl BinPacker3D {
         let longest_item_dim = to_pack[2].length;
         let mut side_1: Option<usize> = None;
 
-        let mut dim_1 = to_pack[0].clone();
-        let mut dim_2 = to_pack[1].clone();
-        let mut dim_3 = to_pack[2].clone();
-
         // Choose the shortest side of the box we can stack the item twice on its longest side
         for (i, b_dim) in container.iter().enumerate() {
             if b_dim.length >= longest_item_dim * 2.0 {
-
-                println!("Stacking item on side {:?} with length {}, since it can fit two items of longest dimension {}", container[i].axis, b_dim.length, longest_item_dim);
-
                 side_1 = Some(i);
-                dim_3.axis = container[i].axis.clone();
+
+                // Create remainder block along fitted axis
+                let mut xyz = [space.x, space.y, space.z];
+                let mut size = [item.width, item.height, item.depth];
+                let extension_index = match container[i].axis {
+                    AxisSize::Width => 0,
+                    AxisSize::Height => 1,
+                    AxisSize::Depth => 2,
+                };
+
+                println!("Extending on axis: {:?} by {}", container[i].axis, to_pack[2].length);
+
+                xyz[extension_index] += to_pack[2].length;
+                size[extension_index] = space_dims[extension_index] - to_pack[2].length;
+
+                remainder_blocks.push(Space {
+                    x: xyz[0],
+                    y: xyz[1],
+                    z: xyz[2],
+                    width: size[0],
+                    height: size[1],
+                    depth: size[2],
+                });
+                println!("2x fit on axis {:?}, remainder block: {}x{}x{} at {},{},{}", b_dim.axis ,size[0], size[1], size[2], xyz[0], xyz[1], xyz[2]);
+
+                // space_dims[extension_index] = to_pack[2].length;
+                // container[i].length = to_pack[2].length;
                 break;
-            } else if eq_tol(b_dim.length, longest_item_dim) {
-
-                println!("Stacking item on side {:?} with length {}, since it can fit the longest dimension {} with an exact fit", container[i].axis, b_dim.length, longest_item_dim);
-
-                // Exact fit, move to next block
+            } 
+            // Otherwise, try for an exact fit
+            else if eq_tol(b_dim.length, to_pack[2].length) {
                 side_1 = Some(i);
-                dim_3.axis = container[i].axis.clone();
+
+                // No remainder block due to exact fit
+                println!("exact fit, no remainder block");
                 break;
             }
         }
-
-        // If no suitable side was found, try fitting the item once
+        // If no suitable side was found, just fit the item
         if side_1.is_none() {
             for (i, b_dim) in container.iter().enumerate() {
-                // If we can't stack twice, choose the shortest side we can stack the item once on
                 if b_dim.length >= longest_item_dim {
-
-                    println!("Stacking item on side {:?} with length {}, since it can fit the longest dimension {}", container[i].axis, b_dim.length, longest_item_dim);
-
                     side_1 = Some(i);
-                    dim_3.axis = container[i].axis.clone();
+
+                    // Create remainder block
+                    let mut xyz = [space.x, space.y, space.z];
+                    let mut size = [item.width, item.height, item.depth];
+                    let extension_index = match container[i].axis {
+                        AxisSize::Width => 0,
+                        AxisSize::Height => 1,
+                        AxisSize::Depth => 2,
+                    };
+                    xyz[extension_index] += longest_item_dim;
+                    size[extension_index] = container[i].length - longest_item_dim;
+
+                    remainder_blocks.push(Space {
+                        x: xyz[0],
+                        y: xyz[1],
+                        z: xyz[2],
+                        width: size[0],
+                        height: size[1],
+                        depth: size[2],
+                    });
+
+                    println!("1x fit, remainder block: {}x{}x{} at {},{},{}", size[0], size[1], size[2], xyz[0], xyz[1], xyz[2]);
                     break;
                 }
             }
         }
 
+        let mut dim_1 = to_pack[0].clone();
+        let mut dim_2 = to_pack[1].clone();
+        let mut dim_3 = to_pack[2].clone();
+        dim_3.axis = container[side_1.unwrap()].axis.clone();
+
         let (side_2, side_3) = Self::get_side_2_side_3(&to_pack, &container, side_1.unwrap());
         dim_2.axis = container[side_2].axis.clone();
         dim_1.axis = container[side_3].axis.clone();
 
+        // Create the remaining two blocks of space
+        let block_2a: Space;
+        let block_3a: Space;
+        let block_2b: Space;
+        let block_3b: Space;
+
+        {
+            let mut xyz = [space.x, space.y, space.z];
+            let mut size = space_dims.clone();
+            let extension_index = match container[side_3].axis {
+                AxisSize::Width => 0,
+                AxisSize::Height => 1,
+                AxisSize::Depth => 2,
+            };
+            xyz[extension_index] += to_pack[0].length;
+            size[extension_index] -= to_pack[0].length;
+            block_2a = Space {
+                x: xyz[0],
+                y: xyz[1],
+                z: xyz[2],
+                width: size[0],
+                height: size[1],
+                depth: size[2],
+            };
+        }
+        {
+            let mut xyz = [space.x, space.y, space.z];
+            let mut size = space_dims.clone();
+            let extension_index = match container[side_2].axis {
+                AxisSize::Width => 0,
+                AxisSize::Height => 1,
+                AxisSize::Depth => 2,
+            };
+            xyz[extension_index] += to_pack[1].length;
+            size[extension_index] -= to_pack[1].length;
+            let smallest_index = match container[side_3].axis {
+                AxisSize::Width => 0,
+                AxisSize::Height => 1,
+                AxisSize::Depth => 2,
+            };
+            size[smallest_index] = to_pack[0].length;
+            block_3a = Space {
+                x: xyz[0],
+                y: xyz[1],
+                z: xyz[2],
+                width: size[0],
+                height: size[1],
+                depth: size[2],
+            };
+        }
+        {
+            let mut xyz = [space.x, space.y, space.z];
+            let mut size = space_dims.clone();
+            let extension_index = match container[side_2].axis {
+                AxisSize::Width => 0,
+                AxisSize::Height => 1,
+                AxisSize::Depth => 2,
+            };
+            xyz[extension_index] += to_pack[1].length;
+            size[extension_index] = container[side_2].length - to_pack[1].length;
+            block_2b = Space {
+                x: xyz[0],
+                y: xyz[1],
+                z: xyz[2],
+                width: size[0],
+                height: size[1],
+                depth: size[2],
+            };
+        }
+        {
+            let mut xyz = [space.x, space.y, space.z];
+            let mut size = space_dims.clone();
+            let extension_index = match container[side_3].axis {
+                AxisSize::Width => 0,
+                AxisSize::Height => 1,
+                AxisSize::Depth => 2,
+            };
+            xyz[extension_index] += to_pack[0].length;
+            size[extension_index] = container[side_3].length - to_pack[0].length;
+            let smallest_index = match container[side_2].axis {
+                AxisSize::Width => 0,
+                AxisSize::Height => 1,
+                AxisSize::Depth => 2,
+            };
+            size[smallest_index] = to_pack[1].length;
+            block_3b = Space {
+                x: xyz[0],
+                y: xyz[1],
+                z: xyz[2],
+                width: size[0],
+                height: size[1],
+                depth: size[2],
+            };
+        }
+
+        if block_2a.volume() > block_2b.volume() {
+            println!("2a 3a, remainder blocks: {}x{}x{} at {},{},{} and {}x{}x{} at {},{},{}", 
+                block_2a.width, block_2a.height, block_2a.depth, block_2a.x, block_2a.y, block_2a.z,
+                block_3a.width, block_3a.height, block_3a.depth, block_3a.x, block_3a.y, block_3a.z
+            );
+            remainder_blocks.push(block_2a);
+            remainder_blocks.push(block_3a);
+        } else {
+            println!("2b 3b, remainder blocks: {}x{}x{} at {},{},{} and {}x{}x{} at {},{},{}", 
+                block_2b.width, block_2b.height, block_2b.depth, block_2b.x, block_2b.y, block_2b.z,
+                block_3b.width, block_3b.height, block_3b.depth, block_3b.x, block_3b.y, block_3b.z
+            );
+            remainder_blocks.push(block_2b);
+            remainder_blocks.push(block_3b);
+        }
+        
+        // Arrange dims back into width/height/depth
         let unarranged = vec![dim_1, dim_2, dim_3];
         let mut orientation = vec![0.0; 3];
         for dim in unarranged.iter() {
@@ -332,17 +440,23 @@ impl BinPacker3D {
             }
         }
 
-        println!("Best orientation for item {}x{}x{} in space {}x{}x{} is {}x{}x{}", 
-            item.width, item.height, item.depth, 
-            space.width, space.height, space.depth,
-            orientation[0], orientation[1], orientation[2]
-        );
+        // Remove any space with 0 volume
+        let filtered: Vec<Space> = remainder_blocks
+            .into_iter()
+            .filter(|s| !eq_tol(s.volume(), 0.0))
+            .collect();
 
-        Orientation {
+        println!("Remainder blocks:");
+        for block in filtered.iter() {
+            println!("{}x{}x{} at {},{},{}", block.width, block.height, block.depth, block.x, block.y, block.z);
+        }
+
+        ( Orientation {
             width: orientation[0],
             height: orientation[1],
             depth: orientation[2],
-        }
+        }, 
+        filtered )
     }
 
     // Determines the rotation method by checking if the item MUST be rotated in a specific direction
@@ -358,154 +472,28 @@ impl BinPacker3D {
         let side_2: usize;
         let side_3: usize;
 
-        // Safely handle array indexing with bounds checking
-        if side_1 > 0 && item_dims[1].length > box_dims[side_1 - 1].length {
-            side_2 = if side_1 >= 2 { side_1 - 2 } else { side_1 + 1 };
-            side_3 = if side_1 > 0 { side_1 - 1 } else { 2 };
-        } else if side_1 >= 2 && item_dims[1].length > box_dims[side_1 - 2].length {
-            side_2 = if side_1 > 0 { side_1 - 1 } else { 2 };
-            side_3 = if side_1 >= 2 { side_1 - 2 } else { side_1 + 1 };
+        fn wraparound(index: i8) -> usize {
+            match index {
+                -1 => 2,
+                -2 => 1,
+                i => i as usize,
+            }
+        }
+        let minus_1 = wraparound(side_1 as i8 - 1); // side_1 - 1 with wraparound
+        let minus_2 = wraparound(side_1 as i8 - 2); // side_1 - 2 with wraparound
+
+        if item_dims[1].length > box_dims[minus_1].length {
+            side_2 = minus_2;
+            side_3 = minus_1;
+        } else if item_dims[1].length > box_dims[minus_2].length {
+            side_2 = minus_1;
+            side_3 = minus_2;
         } else {
             side_2 = (side_1 + 1) % 3;
             side_3 = (side_1 + 2) % 3;
         }
 
         (side_2, side_3)
-    }
-
-    // Split a block of 'Space' up to three times, creating smaller blocks of leftover space surrounding an occupying item.
-    // Note that items are inserted at the bottom left corner, which is why we only ever need to define three new blocks 
-    // to the right, top, and front of the occupying item.
-    // Returns a vector of Space objects.
-    fn split_space(space: &Space, occupied: &Item, spaces: &Vec<Space>) -> Vec<Space> {
-        #[derive(Clone)]
-        enum Direction {
-            Right,
-            Top,
-            Front,
-        }
-        struct Subspace {
-            space: Space,
-            dir: Direction,
-        }
-        let mut subspaces: Vec<Subspace> = Vec::new();
-
-        // Max adjacent blocks
-        let max_right = Space {
-            x: occupied.x + occupied.width,
-            y: occupied.y,
-            z: occupied.z,
-            width: space.width - occupied.width,
-            height: space.height,
-            depth: space.depth,
-        };
-        let max_top = Space {
-            x: occupied.x,
-            y: occupied.y + occupied.height,
-            z: occupied.z,
-            width: space.width,
-            height: space.height - occupied.height,
-            depth: space.depth,
-        };
-        let max_front: Space = Space {
-            x: occupied.x,
-            y: occupied.y,
-            z: occupied.z + occupied.depth,
-            width: space.width,
-            height: space.height,
-            depth: space.depth - occupied.depth,
-        };
-
-        // WIP: Reduce overlapping spaces
-        // Check if the new space is actually part of a larger contiguous block
-        // let is_subset = |candidate: &Space| {
-        //     for space in spaces { 
-        //         // Case 1: Shared width and height (differ in depth/z-axis)
-        //         if eq_tol(space.width, candidate.width) && eq_tol(space.height, candidate.height) 
-        //             && eq_tol(space.x, candidate.x) && eq_tol(space.y, candidate.y) 
-        //             // && candidate.z <= space.z + space.depth || candidate.z >= space.z - space.depth
-        //         {
-        //             return true;
-        //         }
-                
-        //         // Case 2: Shared width and depth (differ in height/y-axis)
-        //         if eq_tol(space.width, candidate.width) && eq_tol(space.depth, candidate.depth) 
-        //             && eq_tol(space.x, candidate.x) && eq_tol(space.z, candidate.z)
-        //             // && candidate.y <= space.y + space.height || candidate.y >= space.y - candidate.height
-        //         {
-        //             return true;
-        //         }
-                
-        //         // Case 3: Shared height and depth (differ in width/x-axis)
-        //         if eq_tol(space.height, candidate.height) && eq_tol(space.depth, candidate.depth) 
-        //             && eq_tol(space.y, candidate.y) && eq_tol(space.z, candidate.z)
-        //             // && candidate.x <= space.x + space.width || candidate.x >= space.x - candidate.width
-        //         {
-        //             return true;
-        //         }
-        //     }
-        //     false
-        // };
-        // if max_right.volume() > 0.0 {
-        //     if !is_subset(&max_right) {
-        //         subspaces.push(Subspace { space: max_right, dir: Direction::Right });
-        //     }
-        // }
-        // if max_top.volume() > 0.0 {
-        //     if !is_subset(&max_top) {
-        //         subspaces.push(Subspace { space: max_top, dir: Direction::Top });
-        //     }
-        // }
-        // if max_front.volume() > 0.0 {
-        //     if !is_subset(&max_front) {
-        //         subspaces.push(Subspace { space: max_front, dir: Direction::Front });
-        //     }
-        // }
-        // if subspaces.is_empty() { // No leftover space, return an empty vector
-        //     return Vec::new();
-        // }
-
-
-        // TEST: No overlap blocks, todo: optimise decision logic between front/right blocks
-        let max_right = Space {
-            x: occupied.x + occupied.width,
-            y: occupied.y,
-            z: occupied.z,
-            width: space.width - occupied.width,
-            height: space.height,
-            depth: occupied.depth,
-        };
-        let max_top = Space {
-            x: occupied.x,
-            y: occupied.y + occupied.height,
-            z: occupied.z,
-            width: occupied.width,
-            height: space.height - occupied.height,
-            depth: occupied.depth,
-        };
-        let max_front: Space = Space {
-            x: occupied.x,
-            y: occupied.y,
-            z: occupied.z + occupied.depth,
-            width: space.width,
-            height: space.height,
-            depth: space.depth - occupied.depth,
-        };
-
-        if max_right.volume() > 0.0 {
-                subspaces.push(Subspace { space: max_right, dir: Direction::Right });
-        }
-        if max_top.volume() > 0.0 {
-                subspaces.push(Subspace { space: max_top, dir: Direction::Top });
-        }
-        if max_front.volume() > 0.0 {
-                subspaces.push(Subspace { space: max_front, dir: Direction::Front });
-        }
-        if subspaces.is_empty() { // No leftover space, return an empty vector
-            return Vec::new();
-        }
-
-        subspaces.into_iter().map(|s| s.space).collect()
     }
 
     // Removes invalid spaces (with zero or negative dimensions) and deduplicates identical spaces
@@ -515,7 +503,7 @@ impl BinPacker3D {
         // Remove any space with 0 volume
         let filtered: Vec<Space> = spaces
             .into_iter()
-            .filter(|s| s.width > 0.0 && s.height > 0.0 && s.depth > 0.0)
+            .filter(|s| !eq_tol(s.volume(), 0.0))
             .collect();
 
         // Deduplicate identical spaces
@@ -535,7 +523,7 @@ impl BinPacker3D {
 
         // Arrange by smallest space first
         deduplicated.sort_by(|a, b| {
-            a.y.partial_cmp(&b.y).unwrap()
+            a.volume().partial_cmp(&b.volume()).unwrap()
         });
 
         deduplicated
@@ -564,6 +552,142 @@ fn fits(container: &Space, to_fit: &Item) -> bool {
     sorted_size_a[0] >= sorted_size_b[0] && 
     sorted_size_a[1] >= sorted_size_b[1] && 
     sorted_size_a[2] >= sorted_size_b[2]
+}
+
+
+// Split a block of 'Space' up to three times, creating smaller blocks of leftover space surrounding an occupying item.
+// Note that items are inserted at the bottom left corner, which is why we only ever need to define three new blocks 
+// to the right, top, and front of the occupying item.
+// Returns a vector of Space objects.
+fn split_space(space: &Space, occupied: &Item, spaces: &Vec<Space>) -> Vec<Space> {
+    #[derive(Clone)]
+    enum Direction {
+        Right,
+        Top,
+        Front,
+    }
+    struct Subspace {
+        space: Space,
+        dir: Direction,
+    }
+    let mut subspaces: Vec<Subspace> = Vec::new();
+
+    // Max adjacent blocks
+    let max_right = Space {
+        x: occupied.x + occupied.width,
+        y: occupied.y,
+        z: occupied.z,
+        width: space.width - occupied.width,
+        height: space.height,
+        depth: space.depth,
+    };
+    let max_top = Space {
+        x: occupied.x,
+        y: occupied.y + occupied.height,
+        z: occupied.z,
+        width: space.width,
+        height: space.height - occupied.height,
+        depth: space.depth,
+    };
+    let max_front: Space = Space {
+        x: occupied.x,
+        y: occupied.y,
+        z: occupied.z + occupied.depth,
+        width: space.width,
+        height: space.height,
+        depth: space.depth - occupied.depth,
+    };
+
+    // WIP: Reduce overlapping spaces
+    // Check if the new space is actually part of a larger contiguous block
+    // let is_subset = |candidate: &Space| {
+    //     for space in spaces { 
+    //         // Case 1: Shared width and height (differ in depth/z-axis)
+    //         if eq_tol(space.width, candidate.width) && eq_tol(space.height, candidate.height) 
+    //             && eq_tol(space.x, candidate.x) && eq_tol(space.y, candidate.y) 
+    //             // && candidate.z <= space.z + space.depth || candidate.z >= space.z - space.depth
+    //         {
+    //             return true;
+    //         }
+            
+    //         // Case 2: Shared width and depth (differ in height/y-axis)
+    //         if eq_tol(space.width, candidate.width) && eq_tol(space.depth, candidate.depth) 
+    //             && eq_tol(space.x, candidate.x) && eq_tol(space.z, candidate.z)
+    //             // && candidate.y <= space.y + space.height || candidate.y >= space.y - candidate.height
+    //         {
+    //             return true;
+    //         }
+            
+    //         // Case 3: Shared height and depth (differ in width/x-axis)
+    //         if eq_tol(space.height, candidate.height) && eq_tol(space.depth, candidate.depth) 
+    //             && eq_tol(space.y, candidate.y) && eq_tol(space.z, candidate.z)
+    //             // && candidate.x <= space.x + space.width || candidate.x >= space.x - candidate.width
+    //         {
+    //             return true;
+    //         }
+    //     }
+    //     false
+    // };
+    // if max_right.volume() > 0.0 {
+    //     if !is_subset(&max_right) {
+    //         subspaces.push(Subspace { space: max_right, dir: Direction::Right });
+    //     }
+    // }
+    // if max_top.volume() > 0.0 {
+    //     if !is_subset(&max_top) {
+    //         subspaces.push(Subspace { space: max_top, dir: Direction::Top });
+    //     }
+    // }
+    // if max_front.volume() > 0.0 {
+    //     if !is_subset(&max_front) {
+    //         subspaces.push(Subspace { space: max_front, dir: Direction::Front });
+    //     }
+    // }
+    // if subspaces.is_empty() { // No leftover space, return an empty vector
+    //     return Vec::new();
+    // }
+
+
+    // TEST: No overlap blocks, todo: optimise decision logic between front/right blocks
+    let max_right = Space {
+        x: occupied.x + occupied.width,
+        y: occupied.y,
+        z: occupied.z,
+        width: space.width - occupied.width,
+        height: space.height,
+        depth: occupied.depth,
+    };
+    let max_top = Space {
+        x: occupied.x,
+        y: occupied.y + occupied.height,
+        z: occupied.z,
+        width: occupied.width,
+        height: space.height - occupied.height,
+        depth: occupied.depth,
+    };
+    let max_front: Space = Space {
+        x: occupied.x,
+        y: occupied.y,
+        z: occupied.z + occupied.depth,
+        width: space.width,
+        height: space.height,
+        depth: space.depth - occupied.depth,
+    };
+
+    if max_right.volume() > 0.0 {
+            subspaces.push(Subspace { space: max_right, dir: Direction::Right });
+    }
+    if max_top.volume() > 0.0 {
+            subspaces.push(Subspace { space: max_top, dir: Direction::Top });
+    }
+    if max_front.volume() > 0.0 {
+            subspaces.push(Subspace { space: max_front, dir: Direction::Front });
+    }
+    if subspaces.is_empty() { // No leftover space, return an empty vector
+        return Vec::new();
+    }
+
+    subspaces.into_iter().map(|s| s.space).collect()
 }
 
 // ----------------------------------------------------------------
