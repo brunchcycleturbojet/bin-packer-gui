@@ -1,5 +1,4 @@
-use serde::{Deserialize, Serialize};
-use crate::packer::{Bin, Item, BinPacker3D, PackResult};
+use crate::packer::{BinPacker3D};
 
 use crate::packer_io::{convert_bin_json, parse_bin_json};
 mod packer_io;
@@ -22,58 +21,45 @@ fn pack_bin(json: &str) -> String {
     let result = BinPacker3D::pack(bin, items);
 
 
+    // // TEMP TEST: Many many items!
     // let bin = Bin {
-    //     width: 30.0,
-    //     height: 30.0,
-    //     depth: 30.0,
+    //     width: 50.0,
+    //     height: 14.0,
+    //     depth: 50.0,
     // };
 
     // let mut items: Vec<Item> = Vec::new();
     // let mut item_id = 0;
 
-
-    // for _ in 0..2 {
+    // // TODO: Edge case, end of stack blocks could be combined, but currently creating staggered items wasting space
+    // for _ in 0..625 {
     //     items.push(Item {
     //         id: item_id,
     //         name: "small".to_string(),
-    //         x: 0.0,
-    //         y: 0.0,
-    //         z: 0.0,
-    //         width: 28.0,
-    //         height: 28.0,
-    //         depth: 2.0,
+    //         position: [0.0, 0.0, 0.0],
+    //         size: [
+    //             Dimension { length: 2.0, axis: AxisSize::Width },
+    //             Dimension { length: 2.0, axis: AxisSize::Height },
+    //             Dimension { length: 2.0, axis: AxisSize::Depth },
+    //         ],
     //     });
     //     item_id += 1;
     // }
 
-    // // for _ in 0..334 {
-    // //     items.push(Item {
-    // //         id: item_id,
-    // //         name: "medium".to_string(),
-    // //         x: 0.0,
-    // //         y: 0.0,
-    // //         z: 0.0,
-    // //         width: 3.0,
-    // //         height: 3.0,
-    // //         depth: 3.0,
-    // //     });
-    // //     item_id += 1;
-    // // }
-
-    // for _ in 0..343 {
+    // for _ in 0..1024 {
     //     items.push(Item {
     //         id: item_id,
-    //         name: "large".to_string(),
-    //         x: 0.0,
-    //         y: 0.0,
-    //         z: 0.0,
-    //         width: 4.0,
-    //         height: 4.0,
-    //         depth: 4.0,
+    //         name: "medium".to_string(),
+    //         position: [0.0, 0.0, 0.0],
+    //         size: [
+    //             Dimension { length: 3.0, axis: AxisSize::Width },
+    //             Dimension { length: 3.0, axis: AxisSize::Height },
+    //             Dimension { length: 3.0, axis: AxisSize::Depth },
+    //         ],
     //     });
     //     item_id += 1;
     // }
-
+    
     // // Pack the items into the bin
     // let result = BinPacker3D::pack(bin, items);
 
@@ -81,13 +67,6 @@ fn pack_bin(json: &str) -> String {
     println!("Time taken to pack: {} ms", result.time_to_pack);
     println!("Bin usage percentage: {:.2}%", result.bin_usage_percentage);
     println!("Packed {} items, {} items could not be packed", result.placed.len(), result.unplaced.len());
-    if !result.unplaced.is_empty() {
-        println!("Unpacked items:");
-        for item in &result.unplaced {
-            println!("Item {}: size ({}, {}, {})",
-                     item.id, item.width, item.height, item.depth);
-        }
-    }
 
     // Generate response JSON
     let result_json = match convert_bin_json(result) {
