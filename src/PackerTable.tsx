@@ -8,9 +8,6 @@ interface PackerTableProps {
 
 function PackerTable({ bin, items }: PackerTableProps) {
 
-  // Show current bin dimensions
-  const binDescription = `${bin.id} (${bin.width}×${bin.height}×${bin.depth})`;
-
   // Load a bin from file
 
   // Save a bin to file
@@ -22,17 +19,14 @@ function PackerTable({ bin, items }: PackerTableProps) {
   // Update item(s)
 
   return (
-    <>
-      <div className="bin-info">{binDescription}</div>
+    <div className="table-container">
       <table>
         <tbody>
           <tr>
             <th></th>
             <th>Name</th>
             <th>Colour</th>
-            <th>Height</th>
-            <th>Width</th>
-            <th>Depth</th>
+            <th>Size</th>
           </tr>
           {items && items.length > 0 ? (
             items.map((item) => (
@@ -40,9 +34,7 @@ function PackerTable({ bin, items }: PackerTableProps) {
                 <td><input type="checkbox" name={`item_${item.id}`} value={`${item.id}`} /></td>
                 <td>{item.name}</td>
                 <td>TODO</td>
-                <td>{item.height}</td>
-                <td>{item.width}</td>
-                <td>{item.depth}</td>
+                <td>{item.width}x{item.height}x{item.depth}</td>
               </tr>
             ))
           ) : (
@@ -53,7 +45,7 @@ function PackerTable({ bin, items }: PackerTableProps) {
         </tbody>
 
       </table>
-    </>
+    </div>
   );
 }
 

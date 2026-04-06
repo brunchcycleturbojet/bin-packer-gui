@@ -1,8 +1,8 @@
 import "../style/Bin3DView.css";
-import { useState, useRef, useLayoutEffect, useEffect } from 'react'
+import { useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { Grid, Outlines, PerspectiveCamera, RoundedBox, Text } from '@react-three/drei'
-import { DoubleSide, EdgesGeometry, LineSegments, LineBasicMaterial, Mesh, AxesHelper } from "three";
+import { Grid, PerspectiveCamera, Text } from '@react-three/drei'
+import { DoubleSide, EdgesGeometry, LineSegments, LineBasicMaterial, Mesh, AxesHelper, BoxGeometry, Color, ColorManagement, LinearSRGBColorSpace, SRGBColorSpace } from "three";
 
 import { Bin, Item } from "../BinData";
 import { CameraControls } from "./CameraControls";
@@ -13,21 +13,16 @@ interface Bin3DViewProps {
 }
 
 function Bin3DView({ bin, items }: Bin3DViewProps) {
-  const [gridOrigin, setGridOrigin] = useState<[number, number, number]>([0, 0, 0]);
-
-  // Center grid to bin position whenever it changes
-  useEffect(() => {
-    setGridOrigin([bin.width / 2, 0, bin.depth / 2])
-  }, [bin.width, bin.height, bin.depth]);
-
   // Generate a box representing the bin, inside the positive quadrant
   function renderBin() {
     const lineOffset = 0.01; // Enlarge the bin slightly so we don't get z-fighting
+    const boxGeom = new BoxGeometry(bin.width + lineOffset, bin.height + lineOffset, bin.depth + lineOffset);
+    const edges = new EdgesGeometry(boxGeom);
+    
     return (
-      <mesh position={[bin.width/2, bin.height/2, bin.depth/2]}>
-        <boxGeometry args={[bin.width + lineOffset, bin.height + lineOffset, bin.depth + lineOffset]} />
-        <meshBasicMaterial color="rgb(97, 97, 97)" wireframe={true} transparent opacity={0.25} side={DoubleSide} />
-      </mesh>
+      <group position={[bin.width/2, bin.height/2, bin.depth/2]}>
+        <primitive object={new LineSegments(edges, new LineBasicMaterial({ color: 0x616161 }))} />
+      </group>
     );
   }
 
@@ -35,8 +30,13 @@ function Bin3DView({ bin, items }: Bin3DViewProps) {
   // Place sequentially to the side of the bin, in order of size
   function renderPackedBoxes() {
     if (Array.isArray(items) && items.length !== 0) {
+      // Calculate min and max volumes for color mapping
+      const volumes = items.map(item => item.width * item.height * item.depth);
+      const minVolume = Math.min(...volumes);
+      const maxVolume = Math.max(...volumes);
+      
       return items.map((item) => (
-        <ItemBox key={item.id} item={item} />
+        <ItemBox key={item.id} item={item} minVolume={minVolume} maxVolume={maxVolume} />
       ));
     }
 
@@ -56,27 +56,7 @@ function Bin3DView({ bin, items }: Bin3DViewProps) {
       {renderBin()}
       {renderPackedBoxes()}
 
-      <Grid 
-        renderOrder={1} 
-        position={gridOrigin} 
-        infiniteGrid 
-        cellSize={1} 
-        cellColor={"rgb(68, 68, 68)"}
-        cellThickness={0.6} 
-        sectionSize={5} 
-        sectionThickness={1.5} 
-        sectionColor={"rgb(253, 169, 12)"} 
-        fadeFrom={0} // 0: fade from origin, 1: fade from camera
-        fadeDistance={60*((bin.height+bin.width+bin.depth) / 10)}
-        fadeStrength={8}
-        side={DoubleSide}
-      />
-
-      {/* Axis */}
-      <primitive object={new AxesHelper(60)} />
-      <Text position={[40, 7, 0]} rotation={[0, Math.PI/2, 0]} fontSize={20} color="red" anchorX="center" anchorY="middle">X</Text>
-      <Text position={[0, 40, 0]} rotation={[Math.PI/2, 0, 0]} fontSize={20} color="green" anchorX="center" anchorY="middle">Y</Text>
-      <Text position={[0, 7, 40]} rotation={[0, Math.PI, 0]} fontSize={20} color="blue" anchorX="center" anchorY="middle">Z</Text>
+      <ScaledGrid bin={bin} />
 
       {/* Overlay for fake reflection, to fade it a little */}
       <mesh position={[0, -0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
@@ -86,8 +66,9 @@ function Bin3DView({ bin, items }: Bin3DViewProps) {
       {/* Simulated reflection via mirrored objects, hidden when camera is below floor */}
       <FloorMask>
         <group scale={[1, -1, 1]} position={[0, -0.02, 0]}>
-          {renderBin()}
-          {renderPackedBoxes()}
+          {/* TODO: Rendering 2x items gets laggy quickly! Screen space reflections should work better.*/}
+          {/* {renderBin()}
+          {renderPackedBoxes()} */}
         </group>
       </FloorMask>
     </Canvas>
@@ -96,43 +77,44 @@ function Bin3DView({ bin, items }: Bin3DViewProps) {
 
 export default Bin3DView;
 
-// Component to render a box with edge outlines
-function ItemBox({ item }: { item: Item }) {
+// Render a box with edge outlines
+function ItemBox({ item, minVolume, maxVolume }: { item: Item; minVolume: number; maxVolume: number }) {
 
   // Define the distance move objects 'up', so they don't clip with the floor.
   // Use to put 'things' on the floor, example: Ypos = Y scale/2 + offset
   const YOffsetFromFloor = 0.001;
+  const shrinkMultiplier = 0.999; // Multiplier to shrink the box, to prevent z-fighting
+
+  // Set colour by interpolating through hues, to visualise volume
+  const volume = item.width * item.height * item.depth;
+  const volumeNormalized = maxVolume === minVolume ? 0.0 : (volume - minVolume) / (maxVolume - minVolume);
+
+  const lowestVolumeColour = new Color().setHSL(27 / 360, 0.96, 0.55, SRGBColorSpace);   // hsl(27, 96%, 55%)
+  const highestVolumeColour = new Color().setHSL(215 / 360, 0.65, 0.53, SRGBColorSpace); // hsl(215, 65%, 53%)
+  const boxColor = new Color().copy(lowestVolumeColour).lerpHSL(highestVolumeColour, volumeNormalized);
+
+  const lowestVolumeWireColour = new Color().setHSL(0 / 360, 0.7, 0.3, SRGBColorSpace);     // hsl(0, 70%, 30%)
+  const highestVolumeWireColour = new Color().setHSL(244 / 360, 0.7, 0.4, SRGBColorSpace);  // hsl(244, 70%, 40%)
+  const wireframeColor = new Color().copy(lowestVolumeWireColour).lerpHSL(highestVolumeWireColour, volumeNormalized);
+  
   return (
-    <mesh 
-      key={item.id} 
-      position={[item.x + item.width / 2, item.y + item.height / 2 + YOffsetFromFloor, item.z + item.depth / 2]}
-    >
-      <RoundedBox
-          args={[item.width, item.height, item.depth]} // Width, Height, Depth
-          radius={0.1}     // Bevel radius
-          smoothness={4}   // Smoothness of the bevel
-          creaseAngle={0.4}
-        >
-        <meshPhongMaterial color="rgb(231, 136, 58)" />
-      </RoundedBox>
+    <group key={item.id} position={[item.x + item.width / 2, item.y + item.height / 2 + YOffsetFromFloor, item.z + item.depth / 2]}>
+      <mesh>
+        {/* Box (slightly smaller to prevent z-fighting on outline) */}
+        <boxGeometry args={[item.width*shrinkMultiplier, item.height*shrinkMultiplier, item.depth*shrinkMultiplier]} />
+        <meshPhongMaterial color={boxColor} wireframe={false}/>
+      </mesh>
+      <mesh>
+        {/* Wireframe outline */}
+        <boxGeometry args={[item.width, item.height, item.depth]} />
+        <meshStandardMaterial color={wireframeColor} wireframe={true} wireframeLinejoin="bevel"/>
+      </mesh>
+    </group>
 
-      <RoundedBox
-          args={[item.width, item.height, item.depth]} // Width, Height, Depth
-          radius={0.1}     // Bevel radius
-          smoothness={4}   // Smoothness of the bevel
-          creaseAngle={0.4}
-        >
-        <meshPhongMaterial color="rgb(231, 136, 58)" />
-      </RoundedBox>
-
-
-      <boxGeometry args={[item.width + 0.01, item.height + 0.01, item.depth + 0.01]} />
-      <meshStandardMaterial color="rgb(55, 62, 126)" wireframe={true} wireframeLinejoin="bevel"/>
-    </mesh>
   );
 }
 
-// Component to control rendering of children, only when above the floor (xz plane)
+// Control rendering of children, display only when above the floor (xz plane)
 function FloorMask({ children }: { children: React.ReactNode }) {
   const { camera } = useThree();
   const [visible, setVisible] = useState(true);
@@ -146,5 +128,39 @@ function FloorMask({ children }: { children: React.ReactNode }) {
 
   return (
     <group visible={visible}> {children} </group>
+  );
+}
+
+// Grid scaled to bin size
+function ScaledGrid({ bin }: { bin: Bin }) {
+  // Scale grid based on bin dimensions (orders of 10)
+  const maxDim = Math.max(bin.width, bin.height, bin.depth);
+  const scale = Math.pow(10, Math.floor(Math.log10(maxDim)));
+
+  return (
+    <>
+    {/* Axes */}
+    <primitive object={new AxesHelper(60*scale)} />
+    <Text position={[40*scale, 8*scale, 0]} rotation={[0, Math.PI/2, 0]} fontSize={20*scale} color="red" anchorX="center" anchorY="middle">X</Text>
+    <Text position={[0, 40*scale, 0]} rotation={[Math.PI/2, 0, 0]} fontSize={20*scale} color="green" anchorX="center" anchorY="middle">Y</Text>
+    <Text position={[0, 8*scale, 40*scale]} rotation={[0, Math.PI, 0]} fontSize={20*scale} color="blue" anchorX="center" anchorY="middle">Z</Text>
+
+    <Grid 
+      renderOrder={1} 
+      position={[0, 0, 0]} 
+      infiniteGrid 
+      cellSize={1 * scale}
+      cellColor={"rgb(68, 68, 68)"}
+      cellThickness={0.6 } 
+      sectionSize={5 * scale} 
+      sectionThickness={1.5 } 
+      sectionColor={"rgb(253, 169, 12)"} 
+      fadeFrom={0}
+      fadeDistance={60*((bin.height+bin.width+bin.depth) / 10)}
+      fadeStrength={8}
+      side={DoubleSide}
+    />
+    </>
+
   );
 }

@@ -2,7 +2,7 @@ import "./style/App.css";
 
 import { invoke } from "@tauri-apps/api/core";
 import {Bin, Item} from "./BinData";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface PackerControlsProps {
   bin: Bin;
@@ -12,14 +12,19 @@ interface PackerControlsProps {
 }
 
 function PackerControls({ bin, items, onItemsPacked, onBinPacked }: PackerControlsProps) {
+
+  const [currentDatasetIndex, setCurrentDatasetIndex] = useState(0);
+  const [testSet, setTestSet] = useState(Cubes);
   const datasets = [
+    { name: "Cubes", data: testSet },
     { name: "Simple Data", data: SimpleData },
     { name: "Test Data", data: TestData },
     { name: "HLJ Data", data: HLJData },
-    { name: "HLJ Rusty", data: HLJRusty },
   ];
 
-  const [currentDatasetIndex, setCurrentDatasetIndex] = useState(0);
+  useEffect(() => {
+    pack_bin();
+  }, [currentDatasetIndex, testSet]);
 
   function cycleDataset() {
     setCurrentDatasetIndex((prevIndex) => (prevIndex + 1) % datasets.length);
@@ -27,6 +32,7 @@ function PackerControls({ bin, items, onItemsPacked, onBinPacked }: PackerContro
 
   // Run packing algo, position items inside bin
   async function pack_bin() {
+    // TODO: Implement UI for add/edit/remove items...
     // const payload = {
     //   bin: {
     //     width: bin.width,
@@ -37,7 +43,6 @@ function PackerControls({ bin, items, onItemsPacked, onBinPacked }: PackerContro
     // };
 
     const payload = datasets[currentDatasetIndex].data;
-    
 
     const json = JSON.stringify(payload);
     const result: string = await invoke("pack_bin", { json });
@@ -56,9 +61,30 @@ function PackerControls({ bin, items, onItemsPacked, onBinPacked }: PackerContro
     }
   }
 
+  // Add a 1x1x1 cube to testSet
+  function addCubeToTestSet() {
+    const newId = testSet.items.length;
+    const newCube: Item = {
+      id: newId,
+      name: "cube",
+      x: 0,
+      y: 0,
+      z: 0,
+      width: 1,
+      height: 1,
+      depth: 1,
+    };
+    setTestSet({
+      ...testSet,
+      items: [...testSet.items, newCube]
+    });
+  }
+
+  const binDescription = `(${bin.width}×${bin.height}×${bin.depth})`;
   return (
+    <>
     <span>
-      <h2>{datasets[currentDatasetIndex].name}</h2>
+      <h2>{datasets[currentDatasetIndex].name} {binDescription}</h2>
       <form
           className="row"
           onSubmit={(e) => {
@@ -66,15 +92,48 @@ function PackerControls({ bin, items, onItemsPacked, onBinPacked }: PackerContro
             pack_bin();
           }}
         >
-          <button type="submit">Pack</button>
+          {/* <button type="submit">Pack</button> */}
           <button type="button" onClick={cycleDataset}>Next Dataset</button>
+          {currentDatasetIndex === 0 && <button type="button" onClick={addCubeToTestSet}>Add Cube</button> }
       </form>
     </span>
-
+    </>
   );
+
 }
 
 export default PackerControls;
+
+// Temp test data...
+const Cubes = {
+  "bin": {
+    "width": 5,
+    "height": 5,
+    "depth": 4
+  },
+  "items": [
+    {
+      "id": 0,
+      "name": "cube1",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 2,
+      "height": 2,
+      "depth": 2,
+    },
+    {
+      "id": 1,
+      "name": "cube1",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 2,
+      "height": 2,
+      "depth": 2,
+    },
+  ]};
+    
 
 const SimpleData = {
   "bin": {
@@ -130,7 +189,7 @@ const TestData = {
   "bin": {
     "width": 3,
     "height": 2,
-    "depth": 1
+    "depth": 2
   },
   "items": [
     {
@@ -262,47 +321,6 @@ const HLJData = {
       "width": 30,
       "height": 7,
       "depth": 19,
-    },
-  ]
-};
-
-const HLJRusty = {
-  "bin": {
-    "width": 48,
-    "height": 35,
-    "depth": 33
-  },
-  "items": [
-    {
-      "id": 0,
-      "name": "rusty",
-      "x": 0,
-      "y": 0,
-      "z": 0,
-      "width": 40,
-      "height": 14,
-      "depth": 33,
-
-    },
-    {
-      "id": 0,
-      "name": "rusty",
-      "x": 0,
-      "y": 0,
-      "z": 0,
-      "width": 40,
-      "height": 14,
-      "depth": 33,
-    },
-    {
-      "id": 2,
-      "name": "yukikaze mave",
-      "x": 0,
-      "y": 0,
-      "z": 0,
-      "width": 23,
-      "height": 14,
-      "depth": 4,
     },
   ]
 };
