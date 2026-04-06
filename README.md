@@ -1,10 +1,9 @@
 # Bin packer GUI (placeholder name)
 
-<todo: add images>
 ![](/public/prototype.png)
 
 Lightweight desktop app implementation of the bin packing problem, in 3D.
-Made as a vehicle for playing around with Three.js and Rust!
+Made as a vehicle for learning and messing around with Three.js and Rust!
 
 Requirements: <todo: define desktop browser version and types>
 
@@ -13,18 +12,18 @@ Requirements: <todo: define desktop browser version and types>
 To run: ```npm run tauri dev```
 
 
-## Planned features
+## Todo list
 
-Algo optimisations:
+Performance:
 - [ ] Swappable heuristics, may help results be more reliable
 - [ ] Multi-bin packing 
+- [ ] Render items incrementally (large quantity of items packs faster than it renders!)
 
-UX:
-- [ ] Add/remove item
+Visual/UX:
+- [ ] Basic UX (async packing, control inputs display, add/edit/remove item controls)
 - [ ] Save/load bin states
-- [ ] Control inputs display
 - [ ] Colour sets for items (e.g based on size, user defined, random)
-- [ ] 3D manipulation in viewer (hide on click, temp remove)
+- [ ] 3D manipulation in viewer (hide on click, temp removal)
 - [ ] Metric/Imperial conversions
 
 
