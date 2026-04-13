@@ -136,20 +136,92 @@ impl BinPacker3D {
             max_dim_b.partial_cmp(&max_dim_a).unwrap()
         });
 
+        let mut previously_defragged: bool = false; // Only defrag once per free_spaces state, to avoid unecessary work
         for item in sorted_items {
             let mut best_fit: Option<(usize, [Dimension; 3], Space, Vec<Space>)> = None;
 
-            // Find a space to fit the item
+            // CASE 1: Iterate through all free spaces, to look for a space that fits the item
             for (index, space) in free_spaces.iter().enumerate() {
 
                 if fits(space, &item) {
                     let (orientation, remainder) = Self::best_orientation(space, &item);
-
                     best_fit = Some((index, orientation, space.clone(), remainder));
                     break;
                 }
             }
 
+            // CASE 2: Couldn't find a space, so try to defrag the spaces by merging adjacent blocks.
+            if best_fit.is_none() && !previously_defragged {
+                previously_defragged = true;
+
+                let mut adjacent_found: bool = true;
+                while adjacent_found {
+                    adjacent_found = false;
+                    
+                    'outer: for i in 0..free_spaces.len() {
+                        for j in (i + 1)..free_spaces.len() {
+                            let space_a = &free_spaces[i];
+                            let space_b = &free_spaces[j];
+
+                            // Check if the two spaces are adjacent along any axis, and if so, merge them into one larger space
+                            for axis in [AxisSize::Width, AxisSize::Height, AxisSize::Depth] {
+                                let a_min = space_a.position_xyz[axis];
+                                let a_max = a_min + space_a.size[axis].length;
+                                let b_min = space_b.position_xyz[axis];
+                                let b_max = b_min + space_b.size[axis].length;
+
+                                // Check for adjacency first
+                                if eq_tol(a_max, b_min) || eq_tol(b_max, a_min) {
+
+                                    // Check the adjacent face is the same size
+                                    let other_axes: Vec<AxisSize> = [AxisSize::Width, AxisSize::Height, AxisSize::Depth]
+                                        .into_iter()
+                                        .filter(|&a| a != axis) // All axes excluding shared axis
+                                        .collect();
+                                    let face_dim_a1 = space_a.size[other_axes[0]].length;
+                                    let face_dim_a2 = space_a.size[other_axes[1]].length;
+                                    let face_dim_b1 = space_b.size[other_axes[0]].length;
+                                    let face_dim_b2 = space_b.size[other_axes[1]].length;
+
+                                    if eq_tol(face_dim_a1, face_dim_b1) && eq_tol(face_dim_a2, face_dim_b2) {
+                                        // Merge the spaces
+                                        let mut position_xyz = [0.0; 3];
+                                        let mut size = [Dimension { length: 0.0, axis }, Dimension { length: 0.0, axis: other_axes[0] }, Dimension { length: 0.0, axis: other_axes[1] }];
+
+                                        for &a in &[AxisSize::Width, AxisSize::Height, AxisSize::Depth] {
+                                            position_xyz[a] = space_a.position_xyz[a].min(space_b.position_xyz[a]);
+                                            size[a] = Dimension {
+                                                length: (space_a.position_xyz[a] + space_a.size[a].length).max(space_b.position_xyz[a] + space_b.size[a].length) - position_xyz[a],
+                                                axis: a,
+                                            };
+                                        }
+                                        let merged = Space {
+                                            position_xyz,
+                                            size,
+                                        };
+                                        free_spaces.remove(j); 
+                                        free_spaces.remove(i);
+                                        free_spaces.push(merged);
+                                        adjacent_found = true;
+                                        break 'outer;
+                                    }
+                                }
+                            }
+                        }
+                    }   
+                }
+
+                // Now we try to fit again
+                for (index, space) in free_spaces.iter().enumerate() {
+                    if fits(space, &item) {
+                        let (orientation, remainder) = Self::best_orientation(space, &item);
+                        best_fit = Some((index, orientation, space.clone(), remainder));
+                        break;
+                    }
+                }
+            }
+
+            // Found a space, so place the item and update the free spaces
             if let Some((space_index, orientation, space, remainder)) = best_fit {
                 // Space found, place the item and consume the space
                 let mut placed_item = item.clone();
@@ -164,9 +236,10 @@ impl BinPacker3D {
                 free_spaces.sort_by(|a, b| {
                     a.volume().partial_cmp(&b.volume()).unwrap()
                 });
+                previously_defragged = false; // Reset defrag flag since the free spaces have changed
 
             } else { 
-                // No possible spaces found! Try the next item.
+                // CASE 3: No possible spaces found! Try the next item.
                 unplaced.push(item);
             }
         }
