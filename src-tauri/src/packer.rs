@@ -47,6 +47,15 @@ pub trait Dimensional {
         }
         xyz
     }
+
+    fn is_same_size(&self, other: &dyn Dimensional) -> bool {
+        let mut size_a = self.as_xyz();
+        size_a.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        let mut size_b = other.as_xyz();
+        size_b.sort_by(|a, b| a.partial_cmp(b).unwrap());
+
+        eq_tol(size_a[0], size_b[0]) && eq_tol(size_a[1], size_b[1]) && eq_tol(size_a[2], size_b[2])
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -137,8 +146,21 @@ impl BinPacker3D {
         });
 
         let mut previously_defragged: bool = false; // Only defrag once per free_spaces state, to avoid unecessary work
+        let mut prev_item: Option<Item> = None; // Store the previously packed item, to compare against the current item and decide whether to defrag or not based on size/shape changes. TODO: This is a bit of a hack, but it seems to work well in testing and improves performance significantly with many items.
+
         for item in sorted_items {
             let mut best_fit: Option<(usize, [Dimension; 3], Space, Vec<Space>)> = None;
+
+            // The algorithm is optimised to create 'channels' for packing items of similar size together,
+            // but once we get to smaller items, these channels become too large and lead to wasted space when using
+            // a first-fit strategy.
+            // To avoid this, we want to defrag the spaces whenever the size/shape of the item we pack changes.
+            prev_item.is_some().then(|| {
+                if !item.is_same_size(prev_item.as_ref().unwrap()) {
+                    free_spaces = Self::defrag(&mut free_spaces);
+                    previously_defragged = true;
+                }
+            });
 
             // CASE 1: Iterate through all free spaces, to look for a space that fits the item
             for (index, space) in free_spaces.iter().enumerate() {
@@ -152,64 +174,9 @@ impl BinPacker3D {
 
             // CASE 2: Couldn't find a space, so try to defrag the spaces by merging adjacent blocks.
             if best_fit.is_none() && !previously_defragged {
+
+                free_spaces = Self::defrag(&mut free_spaces);
                 previously_defragged = true;
-
-                let mut adjacent_found: bool = true;
-                while adjacent_found {
-                    adjacent_found = false;
-                    
-                    'outer: for i in 0..free_spaces.len() {
-                        for j in (i + 1)..free_spaces.len() {
-                            let space_a = &free_spaces[i];
-                            let space_b = &free_spaces[j];
-
-                            // Check if the two spaces are adjacent along any axis, and if so, merge them into one larger space
-                            for axis in [AxisSize::Width, AxisSize::Height, AxisSize::Depth] {
-                                let a_min = space_a.position_xyz[axis];
-                                let a_max = a_min + space_a.size[axis].length;
-                                let b_min = space_b.position_xyz[axis];
-                                let b_max = b_min + space_b.size[axis].length;
-
-                                // Check for adjacency first
-                                if eq_tol(a_max, b_min) || eq_tol(b_max, a_min) {
-
-                                    // Check the adjacent face is the same size
-                                    let other_axes: Vec<AxisSize> = [AxisSize::Width, AxisSize::Height, AxisSize::Depth]
-                                        .into_iter()
-                                        .filter(|&a| a != axis) // All axes excluding shared axis
-                                        .collect();
-                                    let face_dim_a1 = space_a.size[other_axes[0]].length;
-                                    let face_dim_a2 = space_a.size[other_axes[1]].length;
-                                    let face_dim_b1 = space_b.size[other_axes[0]].length;
-                                    let face_dim_b2 = space_b.size[other_axes[1]].length;
-
-                                    if eq_tol(face_dim_a1, face_dim_b1) && eq_tol(face_dim_a2, face_dim_b2) {
-                                        // Merge the spaces
-                                        let mut position_xyz = [0.0; 3];
-                                        let mut size = [Dimension { length: 0.0, axis }, Dimension { length: 0.0, axis: other_axes[0] }, Dimension { length: 0.0, axis: other_axes[1] }];
-
-                                        for &a in &[AxisSize::Width, AxisSize::Height, AxisSize::Depth] {
-                                            position_xyz[a] = space_a.position_xyz[a].min(space_b.position_xyz[a]);
-                                            size[a] = Dimension {
-                                                length: (space_a.position_xyz[a] + space_a.size[a].length).max(space_b.position_xyz[a] + space_b.size[a].length) - position_xyz[a],
-                                                axis: a,
-                                            };
-                                        }
-                                        let merged = Space {
-                                            position_xyz,
-                                            size,
-                                        };
-                                        free_spaces.remove(j); 
-                                        free_spaces.remove(i);
-                                        free_spaces.push(merged);
-                                        adjacent_found = true;
-                                        break 'outer;
-                                    }
-                                }
-                            }
-                        }
-                    }   
-                }
 
                 // Now we try to fit again
                 for (index, space) in free_spaces.iter().enumerate() {
@@ -220,6 +187,8 @@ impl BinPacker3D {
                     }
                 }
             }
+
+            prev_item.replace(item.clone());
 
             // Found a space, so place the item and update the free spaces
             if let Some((space_index, orientation, space, remainder)) = best_fit {
@@ -441,6 +410,77 @@ impl BinPacker3D {
         }
 
         (side_2, side_3)
+    }
+
+    // Defragments free spaces by merging adjacent blocks that share a complete face
+    fn defrag(free_spaces: &Vec<Space>) -> Vec<Space> {
+        let mut new_spaces = free_spaces.clone();
+
+        let mut adjacent_found: bool = true;
+        while adjacent_found {
+            adjacent_found = false;
+            
+            'outer: for i in 0..new_spaces.len() {
+                for j in (i + 1)..new_spaces.len() {
+                    let space_a = &new_spaces[i];
+                    let space_b = &new_spaces[j];
+
+                    for axis in [AxisSize::Width, AxisSize::Height, AxisSize::Depth] {
+                        let a_min = space_a.position_xyz[axis];
+                        let a_max = a_min + space_a.size[axis].length;
+                        let b_min = space_b.position_xyz[axis];
+                        let b_max = b_min + space_b.size[axis].length;
+
+                        // Check for adjacency first
+                        if eq_tol(a_max, b_min) || eq_tol(b_max, a_min) {
+
+                            // Check the adjacent face is the same size
+                            let other_axes: Vec<AxisSize> = [AxisSize::Width, AxisSize::Height, AxisSize::Depth]
+                                .into_iter()
+                                .filter(|&a| a != axis) // All axes excluding shared axis
+                                .collect();
+                            let face_dim_a1 = space_a.size[other_axes[0]].length;
+                            let face_dim_a2 = space_a.size[other_axes[1]].length;
+                            let face_dim_b1 = space_b.size[other_axes[0]].length;
+                            let face_dim_b2 = space_b.size[other_axes[1]].length;
+
+                            if eq_tol(face_dim_a1, face_dim_b1) && eq_tol(face_dim_a2, face_dim_b2) {
+                                // Merge the spaces
+                                let mut position_xyz = [0.0; 3];
+                                let mut size = [Dimension { length: 0.0, axis }, Dimension { length: 0.0, axis: other_axes[0] }, Dimension { length: 0.0, axis: other_axes[1] }];
+
+                                for &a in &[AxisSize::Width, AxisSize::Height, AxisSize::Depth] {
+                                    position_xyz[a] = space_a.position_xyz[a].min(space_b.position_xyz[a]);
+                                    size[a] = Dimension {
+                                        length: (space_a.position_xyz[a] + space_a.size[a].length).max(space_b.position_xyz[a] + space_b.size[a].length) - position_xyz[a],
+                                        axis: a,
+                                    };
+                                }
+                                let merged = Space {
+                                    position_xyz,
+                                    size,
+                                };
+                                new_spaces.remove(j); 
+                                new_spaces.remove(i);
+                                new_spaces.push(merged);
+                                adjacent_found = true;
+                                break 'outer;
+                            }
+                        }
+                    }
+                }
+            }   
+        }
+
+        // Make sure they're arrange from smallest volume to largest for first-fit
+        new_spaces.sort_by(|a, b| {
+            a.volume().partial_cmp(&b.volume()).unwrap()
+        });
+
+        println!("Defrag complete, free spaces:");
+        println!("{:#?}", new_spaces);
+
+        new_spaces
     }
 
 }
