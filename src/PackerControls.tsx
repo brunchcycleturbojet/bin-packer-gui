@@ -1,7 +1,7 @@
 import "./style/App.css";
 
 import { invoke } from "@tauri-apps/api/core";
-import {Bin, Item} from "./BinData";
+import {Bin, Item, FreeSpace} from "./BinData";
 import { useState, useEffect } from "react";
 
 interface PackerControlsProps {
@@ -9,17 +9,20 @@ interface PackerControlsProps {
   items: Item[];
   onItemsPacked: (items: Item[]) => void;
   onBinPacked: (bin: Bin) => void;
+  onFreeSpacesPacked: (spaces: FreeSpace[]) => void;
+  onToggleFreeSpaces: () => void;
 }
 
-function PackerControls({ bin, items, onItemsPacked, onBinPacked }: PackerControlsProps) {
+function PackerControls({ bin, items: _items, onItemsPacked, onBinPacked, onFreeSpacesPacked, onToggleFreeSpaces }: PackerControlsProps) {
 
   const [currentDatasetIndex, setCurrentDatasetIndex] = useState(0);
   const [testSet, setTestSet] = useState(Cubes);
   const datasets = [
     { name: "Cubes", data: testSet },
-    { name: "Simple Data", data: SimpleData },
-    { name: "Test Data", data: TestData },
+    // { name: "Simple Data", data: SimpleData },
+    // { name: "Test Data", data: TestData },
     { name: "HLJ Data", data: HLJData },
+    { name: "HLJ Data 2", data: HLJData2 },
   ];
 
   useEffect(() => {
@@ -53,11 +56,13 @@ function PackerControls({ bin, items, onItemsPacked, onBinPacked }: PackerContro
         const parsedJSON = JSON.parse(result);
         const newBin: Bin = parsedJSON.bin;
         const newItems: Item[] = parsedJSON.items;
+        const newFreeSpaces: FreeSpace[] = parsedJSON.free_spaces;
 
         console.log(newItems);
 
         onBinPacked(newBin);
         onItemsPacked(newItems);
+        onFreeSpacesPacked(newFreeSpaces);
     }
   }
 
@@ -95,6 +100,7 @@ function PackerControls({ bin, items, onItemsPacked, onBinPacked }: PackerContro
           {/* <button type="submit">Pack</button> */}
           <button type="button" onClick={cycleDataset}>Next Dataset</button>
           {currentDatasetIndex === 0 && <button type="button" onClick={addCubeToTestSet}>Add Cube</button> }
+          <button type="button" onClick={onToggleFreeSpaces}>Toggle Free Spaces</button>
       </form>
     </span>
     </>
@@ -107,9 +113,9 @@ export default PackerControls;
 // Temp test data...
 const Cubes = {
   "bin": {
-    "width": 5,
-    "height": 5,
-    "depth": 4
+    "width": 6,
+    "height": 3,
+    "depth": 6
   },
   "items": [
     {
@@ -132,9 +138,80 @@ const Cubes = {
       "height": 2,
       "depth": 2,
     },
-  ]};
+    {
+      "id": 2,
+      "name": "cube1",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 2,
+      "height": 2,
+      "depth": 2,
+    },
+    {
+      "id": 3,
+      "name": "cube1",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 2,
+      "height": 2,
+      "depth": 2,
+    },
+    {
+      "id": 4,
+      "name": "cube1",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 2,
+      "height": 2,
+      "depth": 2,
+    },
+    {
+      "id": 5,
+      "name": "cube1",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 2,
+      "height": 2,
+      "depth": 2,
+    },
+    {
+      "id": 6,
+      "name": "cube1",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 2,
+      "height": 2,
+      "depth": 2,
+    },
+    {
+      "id": 7,
+      "name": "cube1",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 2,
+      "height": 2,
+      "depth": 2,
+    },
+      {
+      "id": 8,
+      "name": "cube1",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 2,
+      "height": 2,
+      "depth": 2,
+    },
+  ],
+  "unpacked_items": []};
     
-
+/*
 const SimpleData = {
   "bin": {
     "width": 3.0,
@@ -185,6 +262,7 @@ const SimpleData = {
   ]
 };
 
+/*
 const TestData = {
   "bin": {
     "width": 3,
@@ -244,6 +322,7 @@ const TestData = {
     },
   ]
 };
+*/
 
 const HLJData = {
   "bin": {
@@ -259,7 +338,7 @@ const HLJData = {
       "y": 0,
       "z": 0,
       "width": 40,
-      "height": 14,
+      "height": 13.7,
       "depth": 33,
     },
     {
@@ -272,16 +351,16 @@ const HLJData = {
       "height": 11,
       "depth": 19,
     },
-    {
-      "id": 2,
-      "name": "new arhan",
-      "x": 0,
-      "y": 0,
-      "z": 0,
-      "width": 30,
-      "height": 12,
-      "depth": 21,
-    },
+    // {
+    //   "id": 2,
+    //   "name": "new arhan",
+    //   "x": 0,
+    //   "y": 0,
+    //   "z": 0,
+    //   "width": 30,
+    //   "height": 12,
+    //   "depth": 21,
+    // },
     {
       "id": 3,
       "name": "gqux",
@@ -292,35 +371,107 @@ const HLJData = {
       "height": 7,
       "depth": 19,
     },
-        {
+    {
       "id": 4,
-      "name": "gqux",
+      "name": "VF-25F",
       "x": 0,
       "y": 0,
       "z": 0,
-      "width": 30,
-      "height": 7,
-      "depth": 19,
+      "width": 31.5,
+      "height": 20.5,
+      "depth": 11,
     },
-            {
-      "id": 5,
-      "name": "gqux",
-      "x": 0,
-      "y": 0,
-      "z": 0,
-      "width": 30,
-      "height": 7,
-      "depth": 19,
-    },
-                {
+    // {
+    //   "id": 5,
+    //   "name": "yefuna",
+    //   "x": 0,
+    //   "y": 0,
+    //   "z": 0,
+    //   "width": 39.5,
+    //   "height": 28.0,
+    //   "depth": 18.6,
+    // },
+    {
       "id": 6,
-      "name": "gqux",
+      "name": "mk-ii aeug",
       "x": 0,
       "y": 0,
       "z": 0,
-      "width": 30,
-      "height": 7,
-      "depth": 19,
+      "width": 29.8,
+      "height": 18.8,
+      "depth": 6.7,
+    },
+  ],
+  "unpacked_items": []
+};
+
+const HLJData2 = {
+  "bin": {
+    "width": 48,
+    "height": 35,
+    "depth": 33
+  },
+  "items": [
+    {
+      "id": 0,
+      "name": "ao kiriyama liger",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 31,
+      "height": 19.5,
+      "depth": 12,
+    },
+    {
+      "id": 1,
+      "name": "ao kiriyama liger",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 31,
+      "height": 19.5,
+      "depth": 12,
+    },
+    {
+      "id": 2,
+      "name": "ao kiriyama liger",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 31,
+      "height": 19.5,
+      "depth": 12,
+    },
+    {
+      "id": 3,
+      "name": "ao kiriyama liger",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 31,
+      "height": 19.5,
+      "depth": 12,
+    },
+    {
+      "id": 4,
+      "name": "ao kiriyama liger",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 31,
+      "height": 19.5,
+      "depth": 12,
+    },
+    {
+      "id": 5,
+      "name": "ao kiriyama liger",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 31,
+      "height": 19.5,
+      "depth": 12,
     },
   ]
+  ,"unpacked_items": []
 };

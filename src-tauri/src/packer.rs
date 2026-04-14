@@ -22,9 +22,9 @@ impl Dimensional for Item {
 }
 
 #[derive(Clone, Debug)]
-struct Space {
-    position_xyz: [f64; 3], // x, y, z
-    size: [Dimension; 3], // Unordered width/height/depth
+pub struct Space {
+    pub position_xyz: [f64; 3], // x, y, z
+    pub size: [Dimension; 3], // Unordered width/height/depth
 }
 impl Dimensional for Space {
     fn get_size(&self) -> &[Dimension; 3] {
@@ -92,6 +92,7 @@ pub struct PackResult {
     pub bin: Bin,
     pub placed: Vec<Item>,
     pub unplaced: Vec<Item>,
+    pub free_spaces: Vec<Space>,
     pub time_to_pack: u128,
     pub bin_usage_percentage: f64,
 }
@@ -226,6 +227,7 @@ impl BinPacker3D {
             bin,
             placed,
             unplaced,
+            free_spaces,
             time_to_pack,
             bin_usage_percentage,
         }

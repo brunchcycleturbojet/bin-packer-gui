@@ -24,3 +24,12 @@ export type Item = {
   height: number,
   depth: number,
 }
+
+export type FreeSpace = {
+  x: number,
+  y: number,
+  z: number,
+  width: number,
+  height: number,
+  depth: number,
+}

@@ -2,17 +2,19 @@ import "../style/Bin3DView.css";
 import { useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Grid, PerspectiveCamera, Text } from '@react-three/drei'
-import { DoubleSide, EdgesGeometry, LineSegments, LineBasicMaterial, Mesh, AxesHelper, BoxGeometry, Color, ColorManagement, LinearSRGBColorSpace, SRGBColorSpace } from "three";
+import { EdgesGeometry, LineSegments, LineBasicMaterial, AxesHelper, BoxGeometry, Color, SRGBColorSpace, DoubleSide } from "three";
 
-import { Bin, Item } from "../BinData";
+import { Bin, Item, FreeSpace } from "../BinData";
 import { CameraControls } from "./CameraControls";
 
 interface Bin3DViewProps {
   bin: Bin;
   items: Item[];
+  freeSpaces: FreeSpace[];
+  showFreeSpaces: boolean;
 }
 
-function Bin3DView({ bin, items }: Bin3DViewProps) {
+function Bin3DView({ bin, items, freeSpaces, showFreeSpaces }: Bin3DViewProps) {
   // Generate a box representing the bin, inside the positive quadrant
   function renderBin() {
     const lineOffset = 0.01; // Enlarge the bin slightly so we don't get z-fighting
@@ -43,6 +45,17 @@ function Bin3DView({ bin, items }: Bin3DViewProps) {
     return null;
   }
 
+  // Generate semi-transparent boxes for free spaces
+  function renderFreeSpaces() {
+    if (showFreeSpaces && Array.isArray(freeSpaces) && freeSpaces.length !== 0) {
+      return freeSpaces.map((space, index) => (
+        <FreeSpaceBox key={`free-${index}`} space={space} />
+      ));
+    }
+
+    return null;
+  }
+
   return (
     <Canvas id="bin3DView" flat shadows >
       <color attach="background" args={['rgb(235, 232, 232)']} />
@@ -54,6 +67,7 @@ function Bin3DView({ bin, items }: Bin3DViewProps) {
       <ambientLight intensity={3.0} />
 
       {renderBin()}
+      {renderFreeSpaces()}
       {renderPackedBoxes()}
 
       <ScaledGrid bin={bin} />
@@ -61,7 +75,8 @@ function Bin3DView({ bin, items }: Bin3DViewProps) {
       {/* Overlay for fake reflection, to fade it a little */}
       <mesh position={[0, -0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[1000, 1000]} />
-        <meshBasicMaterial color='rgb(235, 232, 232)' transparent opacity={0.8} />
+        {/* <meshBasicMaterial color='rgb(235, 232, 232)' transparent opacity={0.8} /> */}
+        
       </mesh>
       {/* Simulated reflection via mirrored objects, hidden when camera is below floor */}
       <FloorMask>
@@ -111,6 +126,26 @@ function ItemBox({ item, minVolume, maxVolume }: { item: Item; minVolume: number
       </mesh>
     </group>
 
+  );
+}
+
+// Render a free space as a semi-transparent box
+function FreeSpaceBox({ space }: { space: FreeSpace }) {
+  const YOffsetFromFloor = 0.001;
+  const freeSpaceColor = new Color(0x4a9eff).convertLinearToSRGB(); // Light blue color for free spaces
+  
+  return (
+    <group position={[space.x + space.width / 2, space.y + space.height / 2 + YOffsetFromFloor, space.z + space.depth / 2]}>
+      <mesh>
+        <boxGeometry args={[space.width, space.height, space.depth]} />
+        <meshPhongMaterial color={freeSpaceColor} wireframe={false} transparent opacity={0.15} />
+      </mesh>
+      <mesh>
+        {/* Wireframe outline */}
+        <boxGeometry args={[space.width, space.height, space.depth]} />
+        <meshStandardMaterial color={freeSpaceColor} wireframe={true} wireframeLinejoin="bevel" transparent opacity={0.4} />
+      </mesh>
+    </group>
   );
 }
 

@@ -1,6 +1,6 @@
-use crate::packer::{BinPacker3D};
+use crate::packer::{AxisSize, Bin, BinPacker3D, Dimension, Item};
 
-use crate::packer_io::{convert_bin_json, parse_bin_json};
+use crate::packer_io::{convert_bin_json, parse_bin_json, write_bin_to_file};
 mod packer_io;
 
 mod packer;
@@ -8,60 +8,58 @@ mod packer;
 #[tauri::command]
 fn pack_bin(json: &str) -> String {
 
-    // Parse the input JSON
-    let (bin, items) = match parse_bin_json(json) {
-        Ok((bin, items)) => (bin, items),
-        Err(e) => {
-            eprintln!("Error parsing JSON: {}", e);
-            return String::new(); // Empty JSON response on error
-        }
-    };
-
-    // Do packing
-    let result = BinPacker3D::pack(bin, items);
-
-
-    // // TEMP TEST: Many many items!
-    // let bin = Bin {
-    //     width: 50.0,
-    //     height: 14.0,
-    //     depth: 50.0,
+    // // Parse the input JSON
+    // let (bin, items, unpacked) = match parse_bin_json(json) {
+    //     Ok((bin, items, unpacked)) => (bin, items, unpacked),
+    //     Err(e) => {
+    //         eprintln!("Error parsing JSON: {}", e);
+    //         return String::new(); // Empty JSON response on error
+    //     }
     // };
 
-    // let mut items: Vec<Item> = Vec::new();
-    // let mut item_id = 0;
-
-    // // TODO: Edge case, end of stack blocks could be combined, but currently creating staggered items wasting space
-    // for _ in 0..625 {
-    //     items.push(Item {
-    //         id: item_id,
-    //         name: "small".to_string(),
-    //         position: [0.0, 0.0, 0.0],
-    //         size: [
-    //             Dimension { length: 2.0, axis: AxisSize::Width },
-    //             Dimension { length: 2.0, axis: AxisSize::Height },
-    //             Dimension { length: 2.0, axis: AxisSize::Depth },
-    //         ],
-    //     });
-    //     item_id += 1;
-    // }
-
-    // for _ in 0..1024 {
-    //     items.push(Item {
-    //         id: item_id,
-    //         name: "medium".to_string(),
-    //         position: [0.0, 0.0, 0.0],
-    //         size: [
-    //             Dimension { length: 3.0, axis: AxisSize::Width },
-    //             Dimension { length: 3.0, axis: AxisSize::Height },
-    //             Dimension { length: 3.0, axis: AxisSize::Depth },
-    //         ],
-    //     });
-    //     item_id += 1;
-    // }
-    
-    // // Pack the items into the bin
+    // // Do packing
     // let result = BinPacker3D::pack(bin, items);
+
+
+    // TEMP TEST: Many many items!
+    let bin = Bin {
+        width: 21.0,
+        height: 8.0,
+        depth: 21.0,
+    };
+
+    let mut items: Vec<Item> = Vec::new();
+    let mut item_id = 0;
+
+    // TODO: Large number of items produces scuffed results (overlapping boxes)
+    for _ in 0..60 {
+        items.push(Item {
+            id: item_id,
+            name: "small".to_string(),
+            position_xyz: [0.0, 0.0, 0.0],
+            size: [
+                Dimension { length: 2.0, axis: AxisSize::Width },
+                Dimension { length: 2.0, axis: AxisSize::Height },
+                Dimension { length: 2.0, axis: AxisSize::Depth },
+            ],
+        });
+        item_id += 1;
+    }
+
+    for _ in 0..100 {
+        items.push(Item {
+            id: item_id,
+            name: "medium".to_string(),
+            position_xyz: [0.0, 0.0, 0.0],
+            size: [
+                Dimension { length: 3.0, axis: AxisSize::Width },
+                Dimension { length: 3.0, axis: AxisSize::Height },
+                Dimension { length: 3.0, axis: AxisSize::Depth },
+            ],
+        });
+        item_id += 1;
+    }
+    let result = BinPacker3D::pack(bin, items);
 
     println!("Container: {}x{}x{}", result.bin.width, result.bin.height, result.bin.depth);
     println!("Time taken to pack: {} ms", result.time_to_pack);
@@ -81,13 +79,30 @@ fn pack_bin(json: &str) -> String {
 }
 
 #[tauri::command]
-fn save_bin_and_items(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
+fn save_bin_and_items(json: &str, file_name: &str) -> String {
+    let file_path = format!("{}.json", file_name);
+
+    // Parse the input JSON
+    let (bin, items, unpacked) = match parse_bin_json(json) {
+        Ok((bin, items, unpacked)) => (bin, items, unpacked),
+        Err(e) => {
+            eprintln!("Error parsing JSON: {}", e);
+            return String::new(); // Empty response on error
+        }
+    };
+
+    match write_bin_to_file(&bin, items, unpacked, file_name) {
+        Ok(_) => file_path,
+        Err(e) => {
+            eprintln!("Error writing to file: {}", e);
+            String::new() // Empty response on error
+        }
+    }
 }
 
 #[tauri::command]
-fn load_bin_and_items(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
+fn load_bin_and_items(file_name: &str) -> String {
+    format!("Hello, {}! You've been greeted from Rust!", file_name)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

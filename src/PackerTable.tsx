@@ -6,7 +6,7 @@ interface PackerTableProps {
   items: Item[];
 }
 
-function PackerTable({ bin, items }: PackerTableProps) {
+function PackerTable({ bin: _bin, items }: PackerTableProps) {
 
   // Load a bin from file
 
