@@ -8,58 +8,57 @@ mod packer;
 #[tauri::command]
 fn pack_bin(json: &str) -> String {
 
-    // // Parse the input JSON
-    // let (bin, items, unpacked) = match parse_bin_json(json) {
-    //     Ok((bin, items, unpacked)) => (bin, items, unpacked),
-    //     Err(e) => {
-    //         eprintln!("Error parsing JSON: {}", e);
-    //         return String::new(); // Empty JSON response on error
-    //     }
-    // };
-
-    // // Do packing
-    // let result = BinPacker3D::pack(bin, items);
-
-
-    // TEMP TEST: Many many items!
-    let bin = Bin {
-        width: 21.0,
-        height: 8.0,
-        depth: 21.0,
+    // Parse the input JSON
+    let (bin, items, unpacked) = match parse_bin_json(json) {
+        Ok((bin, items, unpacked)) => (bin, items, unpacked),
+        Err(e) => {
+            eprintln!("Error parsing JSON: {}", e);
+            return String::new(); // Empty JSON response on error
+        }
     };
 
-    let mut items: Vec<Item> = Vec::new();
-    let mut item_id = 0;
-
-    // TODO: Large number of items produces scuffed results (overlapping boxes)
-    for _ in 0..60 {
-        items.push(Item {
-            id: item_id,
-            name: "small".to_string(),
-            position_xyz: [0.0, 0.0, 0.0],
-            size: [
-                Dimension { length: 2.0, axis: AxisSize::Width },
-                Dimension { length: 2.0, axis: AxisSize::Height },
-                Dimension { length: 2.0, axis: AxisSize::Depth },
-            ],
-        });
-        item_id += 1;
-    }
-
-    for _ in 0..100 {
-        items.push(Item {
-            id: item_id,
-            name: "medium".to_string(),
-            position_xyz: [0.0, 0.0, 0.0],
-            size: [
-                Dimension { length: 3.0, axis: AxisSize::Width },
-                Dimension { length: 3.0, axis: AxisSize::Height },
-                Dimension { length: 3.0, axis: AxisSize::Depth },
-            ],
-        });
-        item_id += 1;
-    }
+    // Do packing
     let result = BinPacker3D::pack(bin, items);
+
+
+    // // TEMP TEST: Many many items!
+    // let bin = Bin {
+    //     width: 21.0,
+    //     height: 8.0,
+    //     depth: 21.0,
+    // };
+
+    // let mut items: Vec<Item> = Vec::new();
+    // let mut item_id = 0;
+
+    // for _ in 0..100 {
+    //     items.push(Item {
+    //         id: item_id,
+    //         name: "small".to_string(),
+    //         position_xyz: [0.0, 0.0, 0.0],
+    //         size: [
+    //             Dimension { length: 2.0, axis: AxisSize::Width },
+    //             Dimension { length: 2.0, axis: AxisSize::Height },
+    //             Dimension { length: 2.0, axis: AxisSize::Depth },
+    //         ],
+    //     });
+    //     item_id += 1;
+    // }
+
+    // for _ in 0..500 {
+    //     items.push(Item {
+    //         id: item_id,
+    //         name: "medium".to_string(),
+    //         position_xyz: [0.0, 0.0, 0.0],
+    //         size: [
+    //             Dimension { length: 3.0, axis: AxisSize::Width },
+    //             Dimension { length: 3.0, axis: AxisSize::Height },
+    //             Dimension { length: 3.0, axis: AxisSize::Depth },
+    //         ],
+    //     });
+    //     item_id += 1;
+    // }
+    // let result = BinPacker3D::pack(bin, items);
 
     println!("Container: {}x{}x{}", result.bin.width, result.bin.height, result.bin.depth);
     println!("Time taken to pack: {} ms", result.time_to_pack);

@@ -456,100 +456,98 @@ impl BinPacker3D {
                         // CASE 1: Blocks are positioned along a same axis and share a face exactly can be merged.
                         if (eq_tol(a_max, b_min) || eq_tol(b_max, a_min)) && eq_tol(face_dim_a1, face_dim_b1) && eq_tol(face_dim_a2, face_dim_b2) 
                         {
-                            let mut position_xyz = [0.0; 3];
-                            let mut size = [Dimension { length: 0.0, axis }, Dimension { length: 0.0, axis: other_axes[0] }, Dimension { length: 0.0, axis: other_axes[1] }];
+                            let mut position_xyz = space_a.position_xyz.clone();
+                            position_xyz[axis] = space_a.position_xyz[axis].min(space_b.position_xyz[axis]);
+                            let mut size = space_a.size.clone();
+                            size[axis] = Dimension {
+                                length: space_a.size[axis].length + space_b.size[axis].length,
+                                axis,
+                            };
 
-                            for &a in &[AxisSize::Width, AxisSize::Height, AxisSize::Depth] {
-                                position_xyz[a] = space_a.position_xyz[a].min(space_b.position_xyz[a]);
-                                size[a] = Dimension {
-                                    length: (space_a.position_xyz[a] + space_a.size[a].length).max(space_b.position_xyz[a] + space_b.size[a].length) - position_xyz[a],
-                                    axis: a,
-                                };
-                            }
                             let merged = Space {
                                 position_xyz,
                                 size,
                             };
                             new_spaces.remove(j); 
                             new_spaces.remove(i);
-                            new_spaces.push(merged);
+                            new_spaces.insert(0, merged); // Spaces are processed in order of distance to origin, so we insert to first
                             adjacent_found = true;
                             break 'outer;
                         }
                         // CASE 2: Blocks that are adjacent but do not share a face exactly, might be able to be rearranged for an overall larger contiguous block
-                        else if (eq_tol(a_max, b_min) || eq_tol(b_max, a_min)) && (eq_tol(face_dim_a1, face_dim_b1) || eq_tol(face_dim_a1, face_dim_b2))
-                        {
-                            let (smaller_face_block, larger_face_block) = {
-                                if face_dim_a1 < face_dim_b1 || face_dim_a1 < face_dim_b2 {
-                                    (space_a, space_b)
-                                } else {
-                                    (space_b, space_a)
-                                }
-                            };
+                        // else if (eq_tol(a_max, b_min) || eq_tol(b_max, a_min)) && (eq_tol(face_dim_a1, face_dim_b1) || eq_tol(face_dim_a1, face_dim_b2))
+                        // {
+                        //     let (smaller_face_block, larger_face_block) = {
+                        //         if face_dim_a1 < face_dim_b1 || face_dim_a1 < face_dim_b2 {
+                        //             (space_a, space_b)
+                        //         } else {
+                        //             (space_b, space_a)
+                        //         }
+                        //     };
 
-                            if smaller_face_block.volume() >= larger_face_block.volume() {
-                                // Smaller face block takes over large face block, for a larger volume block.
-                                let mut position_xyz = smaller_face_block.position_xyz.clone();
-                                position_xyz[axis] = smaller_face_block.position_xyz[axis].min(larger_face_block.position_xyz[axis]);
+                        //     if smaller_face_block.volume() >= larger_face_block.volume() {
+                        //         // Smaller face block takes over large face block, for a larger volume block.
+                        //         let mut position_xyz = smaller_face_block.position_xyz.clone();
+                        //         position_xyz[axis] = smaller_face_block.position_xyz[axis].min(larger_face_block.position_xyz[axis]);
 
-                                let mut size = smaller_face_block.size.clone();
-                                size[axis] = Dimension {
-                                    length: smaller_face_block.size[axis].length + larger_face_block.size[axis].length,
-                                    axis,
-                                };
+                        //         let mut size = smaller_face_block.size.clone();
+                        //         size[axis] = Dimension {
+                        //             length: smaller_face_block.size[axis].length + larger_face_block.size[axis].length,
+                        //             axis,
+                        //         };
 
-                                let merged = Space {
-                                    position_xyz,
-                                    size,
-                                };
+                        //         let merged = Space {
+                        //             position_xyz,
+                        //             size,
+                        //         };
 
-                                // Up to two remainder spaces created along the adjacent face's axis that is the shortest
-                                let smaller_axis = if !eq_tol(face_dim_a1, face_dim_b1) {
-                                    other_axes[0]
-                                } else {
-                                    other_axes[1]
-                                };
+                        //         // Up to two remainder spaces created along the adjacent face's axis that is the shortest
+                        //         let smaller_axis = if !eq_tol(face_dim_a1, face_dim_b1) {
+                        //             other_axes[0]
+                        //         } else {
+                        //             other_axes[1]
+                        //         };
 
-                                let split_a_pos = larger_face_block.position_xyz.clone();
-                                let mut split_a_size = larger_face_block.size.clone();
-                                split_a_size[smaller_axis] = Dimension {
-                                    length: (larger_face_block.position_xyz[smaller_axis] - smaller_face_block.position_xyz[smaller_axis]).abs(),
-                                    axis: smaller_axis,
-                                };
-                                let split_a = Space {
-                                    position_xyz: split_a_pos,
-                                    size: split_a_size,
-                                };
+                        //         let split_a_pos = larger_face_block.position_xyz.clone();
+                        //         let mut split_a_size = larger_face_block.size.clone();
+                        //         split_a_size[smaller_axis] = Dimension {
+                        //             length: (larger_face_block.position_xyz[smaller_axis] - smaller_face_block.position_xyz[smaller_axis]).abs(),
+                        //             axis: smaller_axis,
+                        //         };
+                        //         let split_a = Space {
+                        //             position_xyz: split_a_pos,
+                        //             size: split_a_size,
+                        //         };
 
-                                let mut split_b_pos = larger_face_block.position_xyz.clone();
-                                split_b_pos[smaller_axis] = smaller_face_block.position_xyz[smaller_axis];
-                                let mut split_b_size = larger_face_block.size.clone();
-                                split_b_size[smaller_axis] = Dimension {
-                                    length: (larger_face_block.position_xyz[smaller_axis] - smaller_face_block.position_xyz[smaller_axis] + smaller_face_block.size[smaller_axis].length).abs(),
-                                    axis: smaller_axis,
-                                };
-                                let split_b = Space {
-                                    position_xyz: split_b_pos,
-                                    size: split_b_size,
-                                };
+                        //         let mut split_b_pos = larger_face_block.position_xyz.clone();
+                        //         split_b_pos[smaller_axis] = smaller_face_block.position_xyz[smaller_axis];
+                        //         let mut split_b_size = larger_face_block.size.clone();
+                        //         split_b_size[smaller_axis] = Dimension {
+                        //             length: (larger_face_block.position_xyz[smaller_axis] - smaller_face_block.position_xyz[smaller_axis] + smaller_face_block.size[smaller_axis].length).abs(),
+                        //             axis: smaller_axis,
+                        //         };
+                        //         let split_b = Space {
+                        //             position_xyz: split_b_pos,
+                        //             size: split_b_size,
+                        //         };
 
 
-                                new_spaces.remove(j); 
-                                new_spaces.remove(i);
-                                new_spaces.push(merged);
+                        //         new_spaces.remove(j); 
+                        //         new_spaces.remove(i);
+                        //         new_spaces.push(merged);
 
-                                if !eq_tol(split_a.volume(), 0.0) {
-                                    new_spaces.push(split_a);
-                                }
-                                if !eq_tol(split_b.volume(), 0.0) {
-                                    new_spaces.push(split_b);
-                                }
+                        //         if !eq_tol(split_a.volume(), 0.0) {
+                        //             new_spaces.push(split_a);
+                        //         }
+                        //         if !eq_tol(split_b.volume(), 0.0) {
+                        //             new_spaces.push(split_b);
+                        //         }
 
-                                adjacent_found = true;
-                                break 'outer;
-                            }
+                        //         adjacent_found = true;
+                        //         break 'outer;
+                        //     }
 
-                        }
+                        // }
                     }
 
                 }
