@@ -14,7 +14,7 @@ function App() {
   const [bin, setBin] = useState(initialBin);
   const [items, setItems] = useState(initialItems);
   const [freeSpaces, setFreeSpaces] = useState(initialFreeSpaces);
-  const [showFreeSpaces, setShowFreeSpaces] = useState(true);
+  const [showFreeSpaces, setShowFreeSpaces] = useState(false);
 
   function updateBin(newBin: Bin) {
     setBin(newBin);

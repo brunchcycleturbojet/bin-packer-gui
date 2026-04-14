@@ -100,7 +100,7 @@ function PackerControls({ bin, items: _items, onItemsPacked, onBinPacked, onFree
           {/* <button type="submit">Pack</button> */}
           <button type="button" onClick={cycleDataset}>Next Dataset</button>
           {currentDatasetIndex === 0 && <button type="button" onClick={addCubeToTestSet}>Add Cube</button> }
-          <button type="button" onClick={onToggleFreeSpaces}>Toggle Free Spaces</button>
+          {/* <button type="button" onClick={onToggleFreeSpaces}>Toggle Free Spaces</button> */}
       </form>
     </span>
     </>
