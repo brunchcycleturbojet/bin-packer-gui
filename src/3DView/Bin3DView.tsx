@@ -132,17 +132,18 @@ function ItemBox({ item, minVolume, maxVolume }: { item: Item; minVolume: number
 // Render a free space as a semi-transparent box
 function FreeSpaceBox({ space }: { space: FreeSpace }) {
   const YOffsetFromFloor = 0.001;
+  const shrinkMultiplier = 0.999; // Multiplier to shrink the box, to prevent z-fighting
   const freeSpaceColor = new Color(0x4a9eff).convertLinearToSRGB(); // Light blue color for free spaces
   
   return (
     <group position={[space.x + space.width / 2, space.y + space.height / 2 + YOffsetFromFloor, space.z + space.depth / 2]}>
       <mesh>
-        <boxGeometry args={[space.width, space.height, space.depth]} />
+        <boxGeometry args={[space.width*shrinkMultiplier, space.height*shrinkMultiplier, space.depth*shrinkMultiplier]} />
         <meshPhongMaterial color={freeSpaceColor} wireframe={false} transparent opacity={0.15} />
       </mesh>
       <mesh>
         {/* Wireframe outline */}
-        <boxGeometry args={[space.width, space.height, space.depth]} />
+        <boxGeometry args={[space.width*shrinkMultiplier, space.height*shrinkMultiplier, space.depth*shrinkMultiplier]} />
         <meshStandardMaterial color={freeSpaceColor} wireframe={true} wireframeLinejoin="bevel" transparent opacity={0.4} />
       </mesh>
     </group>

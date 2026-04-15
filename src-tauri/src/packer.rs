@@ -58,7 +58,7 @@ pub trait Dimensional {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Copy)]
 pub struct Dimension {
     pub length: f64,
     pub axis: AxisSize
@@ -214,9 +214,6 @@ impl BinPacker3D {
             }
         }
 
-        println!("Remaining free spaces:");
-        println!("{:#?}", free_spaces);
-
         // Calculate metrics
         let time_to_pack = start_time.elapsed().as_millis();
         let bin_volume = bin.width * bin.height * bin.depth;
@@ -251,21 +248,6 @@ impl BinPacker3D {
         for (i, b_dim) in b_dims.iter().enumerate() {
             if b_dim.length >= item_dims[2].length * 2.0 {
                 side_1 = Some(i);
-
-                // Create remainder block along fitted axis, sized to the item
-                let mut xyz = space.position_xyz.clone();
-                let mut size = item_xyz_dims.clone();
-                xyz[b_dim.axis] += item_dims[2].length;
-                size[b_dim.axis] = space_xyz_dims[b_dim.axis] - item_dims[2].length;
-
-                remainder_blocks.push(Space {
-                    position_xyz: xyz,
-                    size: [
-                        Dimension { length: size[0], axis: AxisSize::Width },
-                        Dimension { length: size[1], axis: AxisSize::Height },
-                        Dimension { length: size[2], axis: AxisSize::Depth },
-                    ],
-                });
                 break;
             } 
             else if eq_tol(b_dim.length, item_dims[2].length) {
@@ -279,21 +261,6 @@ impl BinPacker3D {
             for (i, b_dim) in b_dims.iter().enumerate() {
                 if b_dim.length >= item_dims[2].length {
                     side_1 = Some(i);
-
-                    // Create remainder block
-                    let mut xyz = space.position_xyz.clone();
-                    let mut size = [item.size[0].length, item.size[1].length, item.size[2].length];
-                    xyz[b_dim.axis] += item_dims[2].length;
-                    size[b_dim.axis] = b_dim.length - item_dims[2].length;
-
-                    remainder_blocks.push(Space {
-                        position_xyz: xyz,
-                        size: [
-                            Dimension { length: size[0], axis: AxisSize::Width },
-                            Dimension { length: size[1], axis: AxisSize::Height },
-                            Dimension { length: size[2], axis: AxisSize::Depth },
-                        ],
-                    });
                     break;
                 }
             }
@@ -308,6 +275,29 @@ impl BinPacker3D {
         let (side_2, side_3) = Self::get_side_2_side_3(&item_dims, &b_dims, side_1.unwrap());
         dim_2.axis = b_dims[side_2].axis.clone();
         dim_1.axis = b_dims[side_3].axis.clone();
+
+        let orientation = [dim_1, dim_2, dim_3];
+        let orientation_xyz: [f64; 3] = orientation.iter().fold([0.0, 0.0, 0.0], |mut acc, dim| {
+            acc[dim.axis] = dim.length;
+            acc
+        });
+
+        // First remaining space: Along the shortest side that we fit the item on. This can be of size 0, in which case it will be filtered out later.
+        {
+            let mut xyz = space.position_xyz.clone();
+            let mut size = orientation_xyz.clone();
+            xyz[dim_3.axis] += dim_3.length;
+            size[dim_3.axis] = space_xyz_dims[dim_3.axis] - dim_3.length;
+
+            remainder_blocks.push(Space {
+                position_xyz: xyz,
+                size: [
+                    Dimension { length: size[0], axis: AxisSize::Width },
+                    Dimension { length: size[1], axis: AxisSize::Height },
+                    Dimension { length: size[2], axis: AxisSize::Depth },
+                ],
+            });
+        }
 
         // Calculate how to split up the remaining space after occupation, of which there are two options:
         let block_2a: Space;
@@ -390,7 +380,7 @@ impl BinPacker3D {
             .filter(|s| !eq_tol(s.volume(), 0.0))
             .collect();
 
-        ([dim_1, dim_2, dim_3], filtered )
+        (orientation, filtered)
     }
 
     // Determines the rotation method by checking if the item MUST be rotated in a specific direction
@@ -475,6 +465,7 @@ impl BinPacker3D {
                             break 'outer;
                         }
                         // CASE 2: Blocks that are adjacent but do not share a face exactly, might be able to be rearranged for an overall larger contiguous block
+                        // WARNING! Did not finish when ran. Likely flawed, hypothesis is loops forming (A takes B, B takes C, C takes A)
                         // else if (eq_tol(a_max, b_min) || eq_tol(b_max, a_min)) && (eq_tol(face_dim_a1, face_dim_b1) || eq_tol(face_dim_a1, face_dim_b2))
                         // {
                         //     let (smaller_face_block, larger_face_block) = {
