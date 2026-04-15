@@ -22,16 +22,17 @@ fn pack_bin(json: &str) -> String {
 
 
     // // TEMP TEST: Many many items!
+    // // Packs pretty quickly, but has gaps and overlapping spaces.
     // let bin = Bin {
-    //     width: 21.0,
-    //     height: 8.0,
-    //     depth: 21.0,
+    //     width: 50.0,
+    //     height: 14.0,
+    //     depth: 50.0,
     // };
 
     // let mut items: Vec<Item> = Vec::new();
     // let mut item_id = 0;
 
-    // for _ in 0..100 {
+    // for _ in 0..1024 {
     //     items.push(Item {
     //         id: item_id,
     //         name: "small".to_string(),
@@ -45,7 +46,7 @@ fn pack_bin(json: &str) -> String {
     //     item_id += 1;
     // }
 
-    // for _ in 0..500 {
+    // for _ in 0..1024 {
     //     items.push(Item {
     //         id: item_id,
     //         name: "medium".to_string(),
@@ -59,6 +60,7 @@ fn pack_bin(json: &str) -> String {
     //     item_id += 1;
     // }
     // let result = BinPacker3D::pack(bin, items);
+
 
     println!("Container: {}x{}x{}", result.bin.width, result.bin.height, result.bin.depth);
     println!("Time taken to pack: {} ms", result.time_to_pack);

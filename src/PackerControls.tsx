@@ -10,17 +10,16 @@ interface PackerControlsProps {
   onItemsPacked: (items: Item[]) => void;
   onBinPacked: (bin: Bin) => void;
   onFreeSpacesPacked: (spaces: FreeSpace[]) => void;
-  onToggleFreeSpaces: () => void;
 }
 
-function PackerControls({ bin, items: _items, onItemsPacked, onBinPacked, onFreeSpacesPacked, onToggleFreeSpaces }: PackerControlsProps) {
+function PackerControls({ bin, items: _items, onItemsPacked, onBinPacked, onFreeSpacesPacked }: PackerControlsProps) {
 
   const [currentDatasetIndex, setCurrentDatasetIndex] = useState(0);
   const [testSet, setTestSet] = useState(Cubes);
   const datasets = [
     { name: "Cubes", data: testSet },
-    // { name: "Simple Data", data: SimpleData },
-    // { name: "Test Data", data: TestData },
+    { name: "Simple Data", data: SimpleData },
+    { name: "Test Data", data: TestData },
     { name: "HLJ Data", data: HLJData },
     { name: "HLJ Data 2", data: HLJData2 },
   ];
@@ -66,7 +65,7 @@ function PackerControls({ bin, items: _items, onItemsPacked, onBinPacked, onFree
     }
   }
 
-  // Add a 1x1x1 cube to testSet
+  // TEMP: Add a 1x1x1 cube to testSet
   function addCubeToTestSet() {
     const newId = testSet.items.length;
     const newCube: Item = {
@@ -100,7 +99,6 @@ function PackerControls({ bin, items: _items, onItemsPacked, onBinPacked, onFree
           {/* <button type="submit">Pack</button> */}
           <button type="button" onClick={cycleDataset}>Next Dataset</button>
           {currentDatasetIndex === 0 && <button type="button" onClick={addCubeToTestSet}>Add Cube</button> }
-          {/* <button type="button" onClick={onToggleFreeSpaces}>Toggle Free Spaces</button> */}
       </form>
     </span>
     </>
@@ -211,7 +209,7 @@ const Cubes = {
   ],
   "unpacked_items": []};
     
-/*
+
 const SimpleData = {
   "bin": {
     "width": 3.0,
@@ -259,10 +257,11 @@ const SimpleData = {
       "height": 1.0,
       "depth": 4.0,
     },
-  ]
+  ],
+  "unpacked_items": []
 };
 
-/*
+
 const TestData = {
   "bin": {
     "width": 3,
@@ -320,9 +319,10 @@ const TestData = {
       "height": 0.2,
       "depth": 1,
     },
-  ]
+  ],
+  "unpacked_items": []
 };
-*/
+
 
 const HLJData = {
   "bin": {
@@ -381,16 +381,6 @@ const HLJData = {
       "height": 20.5,
       "depth": 11,
     },
-    // {
-    //   "id": 5,
-    //   "name": "yefuna",
-    //   "x": 0,
-    //   "y": 0,
-    //   "z": 0,
-    //   "width": 39.5,
-    //   "height": 28.0,
-    //   "depth": 18.6,
-    // },
     {
       "id": 6,
       "name": "mk-ii aeug",

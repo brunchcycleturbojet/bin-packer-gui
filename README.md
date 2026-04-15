@@ -20,9 +20,11 @@ Performance:
 - [ ] Swappable heuristics, may help results be more reliable
 - [ ] Multi-bin packing 
 - [ ] Render items incrementally (large quantity of items packs faster than it renders!)
+- [ ] Use instanced meshes for identical items, to reduce draw calls on render
+- [ ] Hardware acceleration (Currently CPU only)
 
 Visual/UX:
-- [ ] Basic UX (async packing, control inputs display, add/edit/remove item controls)
+- [ ] Basic UX (wait for packing on non-ui thread, control inputs display, add/edit/remove item controls)
 - [ ] Save/load bin states
 - [ ] Colour sets for items (e.g based on size, user defined, random)
 - [ ] 3D manipulation in viewer (hide on click, temp removal)

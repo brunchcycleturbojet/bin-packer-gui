@@ -14,7 +14,6 @@ function App() {
   const [bin, setBin] = useState(initialBin);
   const [items, setItems] = useState(initialItems);
   const [freeSpaces, setFreeSpaces] = useState(initialFreeSpaces);
-  const [showFreeSpaces, setShowFreeSpaces] = useState(false);
 
   function updateBin(newBin: Bin) {
     setBin(newBin);
@@ -29,17 +28,13 @@ function App() {
     setFreeSpaces([...newFreeSpaces]);
   }
 
-  function toggleFreeSpaces() {
-    setShowFreeSpaces(prev => !prev);
-  }
-
   return (
     <main className="container">
       <div className="row" id="3DContainer">
-        <Bin3DView bin={bin} items={items} freeSpaces={freeSpaces} showFreeSpaces={showFreeSpaces}/>
+        <Bin3DView bin={bin} items={items} freeSpaces={freeSpaces}/>
       </div>
 
-      <PackerControls bin={bin} items={items} onItemsPacked={updateItems} onBinPacked={updateBin} onFreeSpacesPacked={updateFreeSpaces} onToggleFreeSpaces={toggleFreeSpaces} />
+      <PackerControls bin={bin} items={items} onItemsPacked={updateItems} onBinPacked={updateBin} onFreeSpacesPacked={updateFreeSpaces} />
 
       <PackerTable bin={bin} items={items} />
     </main>

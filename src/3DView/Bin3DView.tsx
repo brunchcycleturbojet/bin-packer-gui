@@ -1,20 +1,25 @@
 import "../style/Bin3DView.css";
-import { useState } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Grid, PerspectiveCamera, Text } from '@react-three/drei'
-import { EdgesGeometry, LineSegments, LineBasicMaterial, AxesHelper, BoxGeometry, Color, SRGBColorSpace, DoubleSide } from "three";
+import { EdgesGeometry, LineSegments, LineBasicMaterial, AxesHelper, BoxGeometry, Color, SRGBColorSpace, DoubleSide, CanvasTexture, PlaneGeometry, MeshStandardMaterial } from "three";
+import { Reflector } from 'three/examples/jsm/objects/Reflector.js';
+import { Perf } from 'r3f-perf';
 
 import { Bin, Item, FreeSpace } from "../BinData";
 import { CameraControls } from "./CameraControls";
+import { DebugButton } from "../DebugButton";
 
 interface Bin3DViewProps {
   bin: Bin;
   items: Item[];
   freeSpaces: FreeSpace[];
-  showFreeSpaces: boolean;
 }
 
-function Bin3DView({ bin, items, freeSpaces, showFreeSpaces }: Bin3DViewProps) {
+function Bin3DView({ bin, items, freeSpaces }: Bin3DViewProps) {
+  const [showDebug, setShowDebug] = useState(false);
+  const [showFreeSpaces, setShowFreeSpaces] = useState(false);
+
   // Generate a box representing the bin, inside the positive quadrant
   function renderBin() {
     const lineOffset = 0.01; // Enlarge the bin slightly so we don't get z-fighting
@@ -47,7 +52,7 @@ function Bin3DView({ bin, items, freeSpaces, showFreeSpaces }: Bin3DViewProps) {
 
   // Generate semi-transparent boxes for free spaces
   function renderFreeSpaces() {
-    if (showFreeSpaces && Array.isArray(freeSpaces) && freeSpaces.length !== 0) {
+    if (showDebug && showFreeSpaces && Array.isArray(freeSpaces) && freeSpaces.length !== 0) {
       return freeSpaces.map((space, index) => (
         <FreeSpaceBox key={`free-${index}`} space={space} />
       ));
@@ -57,36 +62,29 @@ function Bin3DView({ bin, items, freeSpaces, showFreeSpaces }: Bin3DViewProps) {
   }
 
   return (
-    <Canvas id="bin3DView" flat shadows >
-      <color attach="background" args={['rgb(235, 232, 232)']} />
+    <div className="bin3DViewContainer">
 
-      <PerspectiveCamera makeDefault fov={30} position={[10, 10, 10]} zoom={1}/>
-      <CameraControls bin={bin} />
+      <DebugButton showPerf={showDebug} onToggle={() => setShowDebug(!showDebug)} showFreeSpaces={showFreeSpaces} onToggleFreeSpaces={() => setShowFreeSpaces(!showFreeSpaces)} />
 
-      <directionalLight position={[5,10,-2]} intensity={1.0}/>
-      <ambientLight intensity={3.0} />
+      <Canvas id="bin3DView" flat shadows >
+        <color attach="background" args={['rgb(255, 255, 255)']} />
+        <PerspectiveCamera makeDefault fov={30} position={[10, 10, 10]} zoom={1}/>
+        <CameraControls bin={bin} />
+        <directionalLight position={[5,10,-2]} intensity={1.0}/>
+        <ambientLight intensity={3.0} />
 
-      {renderBin()}
-      {renderFreeSpaces()}
-      {renderPackedBoxes()}
+        {showDebug && <>
+          <Perf position="top-left" />
+          <ScaledAxes bin={bin} />
+          {renderFreeSpaces()}
+        </>}
 
-      <ScaledGrid bin={bin} />
+        {renderBin()}
+        {renderPackedBoxes()}
 
-      {/* Overlay for fake reflection, to fade it a little */}
-      <mesh position={[0, -0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[1000, 1000]} />
-        {/* <meshBasicMaterial color='rgb(235, 232, 232)' transparent opacity={0.8} /> */}
-        
-      </mesh>
-      {/* Simulated reflection via mirrored objects, hidden when camera is below floor */}
-      <FloorMask>
-        <group scale={[1, -1, 1]} position={[0, -0.02, 0]}>
-          {/* TODO: Rendering 2x items gets laggy quickly! Screen space reflections should work better.*/}
-          {/* {renderBin()}
-          {renderPackedBoxes()} */}
-        </group>
-      </FloorMask>
-    </Canvas>
+        <ScaledGrid bin={bin} />
+      </Canvas>
+    </div>
   );
 }
 
@@ -150,23 +148,6 @@ function FreeSpaceBox({ space }: { space: FreeSpace }) {
   );
 }
 
-// Control rendering of children, display only when above the floor (xz plane)
-function FloorMask({ children }: { children: React.ReactNode }) {
-  const { camera } = useThree();
-  const [visible, setVisible] = useState(true);
-
-  useFrame(() => {
-    const shouldShow = camera.position.y >= 0;
-    if (visible !== shouldShow) {
-      setVisible(shouldShow);
-    }
-  });
-
-  return (
-    <group visible={visible}> {children} </group>
-  );
-}
-
 // Grid scaled to bin size
 function ScaledGrid({ bin }: { bin: Bin }) {
   // Scale grid based on bin dimensions (orders of 10)
@@ -175,12 +156,6 @@ function ScaledGrid({ bin }: { bin: Bin }) {
 
   return (
     <>
-    {/* Axes */}
-    <primitive object={new AxesHelper(60*scale)} />
-    <Text position={[40*scale, 8*scale, 0]} rotation={[0, Math.PI/2, 0]} fontSize={20*scale} color="red" anchorX="center" anchorY="middle">X</Text>
-    <Text position={[0, 40*scale, 0]} rotation={[Math.PI/2, 0, 0]} fontSize={20*scale} color="green" anchorX="center" anchorY="middle">Y</Text>
-    <Text position={[0, 8*scale, 40*scale]} rotation={[0, Math.PI, 0]} fontSize={20*scale} color="blue" anchorX="center" anchorY="middle">Z</Text>
-
     <Grid 
       renderOrder={1} 
       position={[0, 0, 0]} 
@@ -198,5 +173,19 @@ function ScaledGrid({ bin }: { bin: Bin }) {
     />
     </>
 
+  );
+}
+
+function ScaledAxes({ bin }: { bin: Bin }) {
+  // Scale based on bin dimensions (orders of 10)
+  const maxDim = Math.max(bin.width, bin.height, bin.depth);
+  const scale = Math.pow(10, Math.floor(Math.log10(maxDim)));
+  return (
+    <>
+      <primitive object={new AxesHelper(60*scale)} />
+      <Text position={[40*scale, 8*scale, 0]} rotation={[0, Math.PI/2, 0]} fontSize={20*scale} color="red" anchorX="center" anchorY="middle">X</Text>
+      <Text position={[0, 40*scale, 0]} rotation={[Math.PI/2, 0, 0]} fontSize={20*scale} color="green" anchorX="center" anchorY="middle">Y</Text>
+      <Text position={[0, 8*scale, 40*scale]} rotation={[0, Math.PI, 0]} fontSize={20*scale} color="blue" anchorX="center" anchorY="middle">Z</Text>
+    </>
   );
 }
