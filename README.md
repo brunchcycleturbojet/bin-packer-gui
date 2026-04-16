@@ -2,8 +2,8 @@
 
 ![](/public/prototype.png)
 
-**STATUS**: Very WIP! A lot of unresolved TODOs and comments leftover. But the algo seems to be generally working for small cases.
-**CURRENT FOCUS**: Cleanup warnings, todos
+**STATUS**: Very WIP! A lot of unresolved TODOs and comments leftover. But the algo seems to be generally working for smaller cases. The current structure of swapping through datasets is temporary, and the intention is to be able to define items/boxes through the user interface.
+**CURRENT FOCUS**: Cleanup warnings, todos, implement add/edit/remove controls for items/bins.
 
 Lightweight desktop app implementation of the bin packing problem, in 3D.
 Made as a vehicle for learning and messing around with Three.js and Rust!
