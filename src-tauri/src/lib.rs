@@ -1,4 +1,4 @@
-use crate::packer::{AxisSize, Bin, BinPacker3D, Dimension, Item};
+use crate::packer::{BinPacker3D};
 
 use crate::packer_io::{convert_bin_json, parse_bin_json, write_bin_to_file};
 mod packer_io;
@@ -9,7 +9,7 @@ mod packer;
 fn pack_bin(json: &str) -> String {
 
     // Parse the input JSON
-    let (bin, items, unpacked) = match parse_bin_json(json) {
+    let (bin, items, _unpacked) = match parse_bin_json(json) {
         Ok((bin, items, unpacked)) => (bin, items, unpacked),
         Err(e) => {
             eprintln!("Error parsing JSON: {}", e);
@@ -20,6 +20,7 @@ fn pack_bin(json: &str) -> String {
     // Do packing
     let result = BinPacker3D::pack(bin, items);
 
+    println!("--- Packing Result ---");
     println!("Container: {}x{}x{}", result.bin.width, result.bin.height, result.bin.depth);
     println!("Time taken to pack: {} ms", result.time_to_pack);
     println!("Bin usage percentage: {:.2}%", result.bin_usage_percentage);

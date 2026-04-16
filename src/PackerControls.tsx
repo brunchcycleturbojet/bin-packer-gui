@@ -111,7 +111,7 @@ export default PackerControls;
 // Temp test data...
 const Cubes = {
   "bin": {
-    "width": 6,
+    "width": 7,
     "height": 3,
     "depth": 6
   },

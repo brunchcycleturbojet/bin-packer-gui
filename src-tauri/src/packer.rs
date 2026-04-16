@@ -13,7 +13,7 @@ pub struct Item {
     pub id: i32,
     pub name: String,
     pub position_xyz: [f64; 3],
-    pub size: [Dimension; 3],
+    pub size: [Dimension; 3], // Unordered width/height/depth
 }
 impl Dimensional for Item {
     fn get_size(&self) -> &[Dimension; 3] {
@@ -23,7 +23,7 @@ impl Dimensional for Item {
 
 #[derive(Clone, Debug)]
 pub struct Space {
-    pub position_xyz: [f64; 3], // x, y, z
+    pub position_xyz: [f64; 3],
     pub size: [Dimension; 3], // Unordered width/height/depth
 }
 impl Dimensional for Space {
@@ -40,7 +40,7 @@ pub trait Dimensional {
         size[0].length * size[1].length * size[2].length
     }
 
-    fn as_xyz(&self) -> [f64; 3] {
+    fn size_xyz(&self) -> [f64; 3] {
         let mut xyz = [0.0, 0.0, 0.0];
         for dim in self.get_size().iter() {
             xyz[dim.axis] = dim.length;
@@ -49,9 +49,9 @@ pub trait Dimensional {
     }
 
     fn is_same_size(&self, other: &dyn Dimensional) -> bool {
-        let mut size_a = self.as_xyz();
+        let mut size_a = self.size_xyz();
         size_a.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        let mut size_b = other.as_xyz();
+        let mut size_b = other.size_xyz();
         size_b.sort_by(|a, b| a.partial_cmp(b).unwrap());
 
         eq_tol(size_a[0], size_b[0]) && eq_tol(size_a[1], size_b[1]) && eq_tol(size_a[2], size_b[2])
@@ -231,7 +231,7 @@ impl BinPacker3D {
     }
 
     fn best_orientation(space: &Space, item: &Item) -> ([Dimension; 3], Vec<Space>) {
-        let b_dims_xyz = space.as_xyz();
+        let b_dims_xyz = space.size_xyz();
         let mut b_dims = space.size.clone();
         let mut item_dims = item.size.clone();
         let mut remainder_blocks: Vec<Space> = Vec::new();
@@ -567,11 +567,11 @@ fn eq_tol(a: f64, b:f64) -> bool {
 
 // Check that an Item can fit into a Space, based on their dimensions
 fn fits(container: &Space, to_fit: &Item) -> bool {
-    let mut sorted_size_a = container.as_xyz();
+    let mut sorted_size_a = container.size_xyz();
     sorted_size_a.sort_by( |a, b|{
         b.partial_cmp(&a).unwrap() }); 
 
-    let mut sorted_size_b = to_fit.as_xyz();
+    let mut sorted_size_b = to_fit.size_xyz();
     sorted_size_b.sort_by( |a, b|{
         b.partial_cmp(&a).unwrap() }); 
 

@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use crate::packer::{Bin, Item, PackResult, Dimension, AxisSize, Dimensional, Space};
+use crate::packer::{Bin, Item, PackResult, Dimension, AxisSize, Dimensional};
 
 #[derive(Serialize)]
 struct ItemOutput {
@@ -88,7 +88,7 @@ pub fn parse_bin_json(json: &str) -> Result<(Bin, Vec<Item>, Vec<Item>), serde_j
 
 pub fn convert_bin_json(result: PackResult) -> Result<String, serde_json::Error> {
     let unpacked_items: Vec<ItemOutput> = result.unplaced.iter().map(|item| {
-        let size = item.as_xyz();
+        let size = item.size_xyz();
         ItemOutput {
             id: item.id,
             name: item.name.clone(),
@@ -102,7 +102,7 @@ pub fn convert_bin_json(result: PackResult) -> Result<String, serde_json::Error>
     }).collect();
 
     let placed_items: Vec<ItemOutput> = result.placed.iter().map(|item| {
-        let size = item.as_xyz();
+        let size = item.size_xyz();
         ItemOutput {
             id: item.id,
             name: item.name.clone(),
@@ -116,7 +116,7 @@ pub fn convert_bin_json(result: PackResult) -> Result<String, serde_json::Error>
     }).collect();
 
     let free_spaces_output: Vec<SpaceOutput> = result.free_spaces.iter().map(|space| {
-        let xyz = space.as_xyz();
+        let xyz = space.size_xyz();
         SpaceOutput {
             x: space.position_xyz[0],
             y: space.position_xyz[1],
@@ -141,7 +141,7 @@ pub fn write_bin_to_file(bin: &Bin, items: Vec<Item>, unpacked: Vec<Item>, file_
     let packing_data = PackingDataOutput {
         bin: bin.clone(),
         items: items.into_iter().map(|item| {
-            let size = item.as_xyz();
+            let size = item.size_xyz();
             ItemOutput {
                 id: item.id,
                 name: item.name.clone(),
@@ -154,7 +154,7 @@ pub fn write_bin_to_file(bin: &Bin, items: Vec<Item>, unpacked: Vec<Item>, file_
             }
         }).collect(),
         unpacked_items: unpacked.into_iter().map(|item| {
-            let size = item.as_xyz();
+            let size = item.size_xyz();
             ItemOutput {
                 id: item.id,
                 name: item.name.clone(),
