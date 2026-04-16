@@ -15,7 +15,7 @@ mod tests {
         let mut item_id = 0;
         for _ in 0..6 {
             items.push(Item {
-                id: item_id,
+                shape_id: item_id,
                 name: "item".to_string(),
                 position_xyz: [0.0, 0.0, 0.0],
                 size: [
@@ -57,7 +57,7 @@ mod tests {
         };
         let items: Vec<Item> = vec![
             Item {
-                id: 0,
+                shape_id: 0,
                 name: "item_1".to_string(),
                 position_xyz: [0.0, 0.0, 0.0],
                 size: [
@@ -67,7 +67,7 @@ mod tests {
                 ],
             },
             Item {
-                id: 1,
+                shape_id: 1,
                 name: "item_2".to_string(),
                 position_xyz: [0.0, 0.0, 0.0],
                 size: [
@@ -77,7 +77,7 @@ mod tests {
                 ],
             },
             Item {
-                id: 2,
+                shape_id: 2,
                 name: "item_3".to_string(),
                 position_xyz: [0.0, 0.0, 0.0],
                 size: [
@@ -109,7 +109,7 @@ mod tests {
         let mut item_id = 0;
         for _ in 0..1024 {
             items.push(Item {
-                id: item_id,
+                shape_id: item_id,
                 name: "small".to_string(),
                 position_xyz: [0.0, 0.0, 0.0],
                 size: [
@@ -122,7 +122,7 @@ mod tests {
         }
         for _ in 0..1024 {
             items.push(Item {
-                id: item_id,
+                shape_id: item_id,
                 name: "medium".to_string(),
                 position_xyz: [0.0, 0.0, 0.0],
                 size: [
@@ -152,17 +152,17 @@ mod tests {
             assert!(
                 item.position_xyz[0] + item.size_xyz()[0] <= bin.width,
                 "Item {} extends beyond bin width",
-                item.id
+                item.shape_id
             );
             assert!(
                 item.position_xyz[1] + item.size_xyz()[1] <= bin.height,
                 "Item {} extends beyond bin height",
-                item.id
+                item.shape_id
             );
             assert!(
                 item.position_xyz[2] + item.size_xyz()[2] <= bin.depth,
                 "Item {} extends beyond bin depth",
-                item.id
+                item.shape_id
             );
         }
     }

@@ -30,8 +30,8 @@ function PackerTable({ bin: _bin, items }: PackerTableProps) {
           </tr>
           {items && items.length > 0 ? (
             items.map((item) => (
-              <tr key={item.id}>
-                <td><input type="checkbox" name={`item_${item.id}`} value={`${item.id}`} /></td>
+              <tr key={item.shape_id}>
+                <td><input type="checkbox" name={`item_${item.shape_id}`} value={`${item.shape_id}`} /></td>
                 <td>{item.name}</td>
                 <td>TODO</td>
                 <td>{item.width}x{item.height}x{item.depth}</td>

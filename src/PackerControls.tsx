@@ -69,7 +69,7 @@ function PackerControls({ bin, items: _items, onItemsPacked, onBinPacked, onFree
   function addCubeToTestSet() {
     const newId = testSet.items.length;
     const newCube: Item = {
-      id: newId,
+      shape_id: newId,
       name: "cube",
       x: 0,
       y: 0,
@@ -117,7 +117,7 @@ const Cubes = {
   },
   "items": [
     {
-      "id": 0,
+      "shape_id": 0,
       "name": "cube1",
       "x": 0,
       "y": 0,
@@ -127,7 +127,7 @@ const Cubes = {
       "depth": 2,
     },
     {
-      "id": 1,
+      "shape_id": 1,
       "name": "cube1",
       "x": 0,
       "y": 0,
@@ -137,7 +137,7 @@ const Cubes = {
       "depth": 2,
     },
     {
-      "id": 2,
+      "shape_id": 2,
       "name": "cube1",
       "x": 0,
       "y": 0,
@@ -147,7 +147,7 @@ const Cubes = {
       "depth": 2,
     },
     {
-      "id": 3,
+      "shape_id": 3,
       "name": "cube1",
       "x": 0,
       "y": 0,
@@ -157,7 +157,7 @@ const Cubes = {
       "depth": 2,
     },
     {
-      "id": 4,
+      "shape_id": 4,
       "name": "cube1",
       "x": 0,
       "y": 0,
@@ -167,7 +167,7 @@ const Cubes = {
       "depth": 2,
     },
     {
-      "id": 5,
+      "shape_id": 5,
       "name": "cube1",
       "x": 0,
       "y": 0,
@@ -177,7 +177,7 @@ const Cubes = {
       "depth": 2,
     },
     {
-      "id": 6,
+      "shape_id": 6,
       "name": "cube1",
       "x": 0,
       "y": 0,
@@ -187,7 +187,7 @@ const Cubes = {
       "depth": 2,
     },
     {
-      "id": 7,
+      "shape_id": 7,
       "name": "cube1",
       "x": 0,
       "y": 0,
@@ -197,7 +197,7 @@ const Cubes = {
       "depth": 2,
     },
       {
-      "id": 8,
+      "shape_id": 8,
       "name": "cube1",
       "x": 0,
       "y": 0,
@@ -218,7 +218,7 @@ const SimpleData = {
   },
   "items": [
     {
-      "id": 0,
+      "shape_id": 0,
       "name": "example1",
       "x": 0,
       "y": 0,
@@ -228,7 +228,7 @@ const SimpleData = {
       "depth": 3.0,
     },
     {
-      "id": 1,
+      "shape_id": 1,
       "name": "example1",
       "x": 0,
       "y": 0,
@@ -238,7 +238,7 @@ const SimpleData = {
       "depth": 2.0,
     },
     {
-      "id": 2,
+      "shape_id": 2,
       "name": "example1",
       "x": 0,
       "y": 0,
@@ -248,7 +248,7 @@ const SimpleData = {
       "depth": 5.0,
     },
     {
-      "id": 3,
+      "shape_id": 3,
       "name": "example1",
       "x": 0,
       "y": 0,
@@ -270,7 +270,7 @@ const TestData = {
   },
   "items": [
     {
-      "id": 0,
+      "shape_id": 0,
       "name": "example1",
       "x": 0,
       "y": 0,
@@ -280,7 +280,7 @@ const TestData = {
       "depth": 1,
     },
     {
-      "id": 1,
+      "shape_id": 1,
       "name": "example1",
       "x": 0,
       "y": 0,
@@ -290,7 +290,7 @@ const TestData = {
       "depth": 1,
     },
     {
-      "id": 2,
+      "shape_id": 2,
       "name": "example1",
       "x": 0,
       "y": 0,
@@ -300,7 +300,7 @@ const TestData = {
       "depth": 1,
     },
     {
-      "id": 3,
+      "shape_id": 3,
       "name": "example1",
       "x": 0,
       "y": 0,
@@ -310,7 +310,7 @@ const TestData = {
       "depth": 1,
     },
     {
-      "id": 4,
+      "shape_id": 4,
       "name": "example1",
       "x": 0,
       "y": 0,
@@ -332,7 +332,7 @@ const HLJData = {
   },
   "items": [
     {
-      "id": 0,
+      "shape_id": 0,
       "name": "liger panzer",
       "x": 0,
       "y": 0,
@@ -342,7 +342,7 @@ const HLJData = {
       "depth": 33,
     },
     {
-      "id": 1,
+      "shape_id": 1,
       "name": "arhan",
       "x": 0,
       "y": 0,
@@ -352,7 +352,7 @@ const HLJData = {
       "depth": 19,
     },
     // {
-    //   "id": 2,
+    //   "shape_id": 2,
     //   "name": "new arhan",
     //   "x": 0,
     //   "y": 0,
@@ -362,7 +362,7 @@ const HLJData = {
     //   "depth": 21,
     // },
     {
-      "id": 3,
+      "shape_id": 3,
       "name": "gqux",
       "x": 0,
       "y": 0,
@@ -372,7 +372,7 @@ const HLJData = {
       "depth": 19,
     },
     {
-      "id": 4,
+      "shape_id": 4,
       "name": "VF-25F",
       "x": 0,
       "y": 0,
@@ -382,7 +382,7 @@ const HLJData = {
       "depth": 11,
     },
     {
-      "id": 6,
+      "shape_id": 6,
       "name": "mk-ii aeug",
       "x": 0,
       "y": 0,
@@ -403,7 +403,7 @@ const HLJData2 = {
   },
   "items": [
     {
-      "id": 0,
+      "shape_id": 0,
       "name": "ao kiriyama liger",
       "x": 0,
       "y": 0,
@@ -413,7 +413,7 @@ const HLJData2 = {
       "depth": 12,
     },
     {
-      "id": 1,
+      "shape_id": 1,
       "name": "ao kiriyama liger",
       "x": 0,
       "y": 0,
@@ -423,7 +423,7 @@ const HLJData2 = {
       "depth": 12,
     },
     {
-      "id": 2,
+      "shape_id": 2,
       "name": "ao kiriyama liger",
       "x": 0,
       "y": 0,
@@ -433,7 +433,7 @@ const HLJData2 = {
       "depth": 12,
     },
     {
-      "id": 3,
+      "shape_id": 3,
       "name": "ao kiriyama liger",
       "x": 0,
       "y": 0,
@@ -443,7 +443,7 @@ const HLJData2 = {
       "depth": 12,
     },
     {
-      "id": 4,
+      "shape_id": 4,
       "name": "ao kiriyama liger",
       "x": 0,
       "y": 0,
@@ -453,7 +453,7 @@ const HLJData2 = {
       "depth": 12,
     },
     {
-      "id": 5,
+      "shape_id": 5,
       "name": "ao kiriyama liger",
       "x": 0,
       "y": 0,

@@ -10,7 +10,7 @@ pub struct Bin {
 
 #[derive(Clone, Debug)]
 pub struct Item {
-    pub id: i32,
+    pub shape_id: i32, // Quantity is scrubbed when packing, so we keep track of a shape_id shared by identical items. 
     pub name: String,
     pub position_xyz: [f64; 3],
     pub size: [Dimension; 3], // Unordered width/height/depth

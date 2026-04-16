@@ -3,7 +3,7 @@ use crate::packer::{Bin, Item, PackResult, Dimension, AxisSize, Dimensional};
 
 #[derive(Serialize)]
 struct ItemOutput {
-    id: i32,
+    shape_id: i32,
     name: String,
     x: f64,
     y: f64,
@@ -23,9 +23,9 @@ struct SpaceOutput {
     depth: f64,
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 struct ItemInput {
-    id: i32,
+    shape_id: i32,
     name: String,
     #[serde(default)]
     x: f64,
@@ -36,6 +36,13 @@ struct ItemInput {
     width: f64,
     height: f64,
     depth: f64,
+    #[serde(default = "default_quantity")]
+    quantity: i32,
+}
+
+// TODO: Refactor test data to use quantity, and remove this default value
+fn default_quantity() -> i32 {
+    1
 }
 
 #[derive(Serialize)]
@@ -46,7 +53,7 @@ struct PackingDataOutput {
     free_spaces: Vec<SpaceOutput>,
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 struct PackingDataInput {
     bin: Bin,
     items: Vec<ItemInput>,
@@ -57,31 +64,8 @@ pub fn parse_bin_json(json: &str) -> Result<(Bin, Vec<Item>, Vec<Item>), serde_j
     let data: PackingDataInput = serde_json::from_str(json)?;
 
     let bin = data.bin;
-    let items: Vec<Item> = data.items.into_iter().map(|input_item| {
-        Item {
-            id: input_item.id,
-            name: input_item.name,
-            position_xyz: [input_item.x, input_item.y, input_item.z],
-            size: [
-                Dimension { length: input_item.width, axis: AxisSize::Width },
-                Dimension { length: input_item.height, axis: AxisSize::Height },
-                Dimension { length: input_item.depth, axis: AxisSize::Depth },
-            ],
-        }
-    }).collect();
-
-    let unpacked_items = data.unpacked_items.into_iter().map(|input_item| {
-        Item {
-            id: input_item.id,
-            name: input_item.name,
-            position_xyz: [input_item.x, input_item.y, input_item.z],
-            size: [
-                Dimension { length: input_item.width, axis: AxisSize::Width },
-                Dimension { length: input_item.height, axis: AxisSize::Height },
-                Dimension { length: input_item.depth, axis: AxisSize::Depth },
-            ],
-        }
-    }).collect();
+    let items = expand_items(data.items);
+    let unpacked_items = expand_items(data.unpacked_items);
 
     Ok((bin, items, unpacked_items))
 }
@@ -90,7 +74,7 @@ pub fn convert_bin_json(result: PackResult) -> Result<String, serde_json::Error>
     let unpacked_items: Vec<ItemOutput> = result.unplaced.iter().map(|item| {
         let size = item.size_xyz();
         ItemOutput {
-            id: item.id,
+            shape_id: item.shape_id,
             name: item.name.clone(),
             x: item.position_xyz[0],
             y: item.position_xyz[1],
@@ -104,7 +88,7 @@ pub fn convert_bin_json(result: PackResult) -> Result<String, serde_json::Error>
     let placed_items: Vec<ItemOutput> = result.placed.iter().map(|item| {
         let size = item.size_xyz();
         ItemOutput {
-            id: item.id,
+            shape_id: item.shape_id,
             name: item.name.clone(),
             x: item.position_xyz[0],
             y: item.position_xyz[1],
@@ -138,35 +122,10 @@ pub fn convert_bin_json(result: PackResult) -> Result<String, serde_json::Error>
 }
 
 pub fn write_bin_to_file(bin: &Bin, items: Vec<Item>, unpacked: Vec<Item>, file_name: &str) -> std::io::Result<()> {
-    let packing_data = PackingDataOutput {
+    let packing_data = PackingDataInput {
         bin: bin.clone(),
-        items: items.into_iter().map(|item| {
-            let size = item.size_xyz();
-            ItemOutput {
-                id: item.id,
-                name: item.name.clone(),
-                x: item.position_xyz[0],
-                y: item.position_xyz[1],
-                z: item.position_xyz[2],
-                width: size[0],
-                height: size[1],
-                depth: size[2],
-            }
-        }).collect(),
-        unpacked_items: unpacked.into_iter().map(|item| {
-            let size = item.size_xyz();
-            ItemOutput {
-                id: item.id,
-                name: item.name.clone(),
-                x: item.position_xyz[0],
-                y: item.position_xyz[1],
-                z: item.position_xyz[2],
-                width: size[0],
-                height: size[1],
-                depth: size[2],
-            }
-        }).collect(),
-        free_spaces: vec![],
+        items: group_items(items),
+        unpacked_items: group_items(unpacked),
     };
 
     let json_data = serde_json::to_string_pretty(&packing_data)?;
@@ -179,4 +138,51 @@ pub fn load_bin_from_file(file_name: &str) -> std::io::Result<(Bin, Vec<Item>, V
         Ok((bin, items, unpacked)) => Ok((bin, items, unpacked)),
         Err(e) => Err(std::io::Error::new(std::io::ErrorKind::InvalidData, e)),
     }
+}
+
+// Processes input items into a vector of items, with duplicates based on their specified quantity. This format is needed for the packing algo.
+fn expand_items(input_items: Vec<ItemInput>) -> Vec<Item> {
+    let mut items = Vec::new();
+    for input_item in input_items {
+        for _ in 0..input_item.quantity {
+            items.push(Item {
+                shape_id: input_item.shape_id,
+                name: input_item.name.clone(),
+                position_xyz: [input_item.x, input_item.y, input_item.z],
+                size: [
+                    Dimension { length: input_item.width, axis: AxisSize::Width },
+                    Dimension { length: input_item.height, axis: AxisSize::Height },
+                    Dimension { length: input_item.depth, axis: AxisSize::Depth },
+                ],
+            });
+        }
+    }
+    items
+}
+
+// Processes items by collapsing same ids into one, returning ItemInput with quantity tracking.
+fn group_items(items: Vec<Item>) -> Vec<ItemInput> {
+    use std::collections::HashMap;
+
+    let mut items_map: HashMap<i32, Vec<Item>> = HashMap::new();
+    for item in items {
+        items_map.entry(item.shape_id).or_insert_with(Vec::new).push(item);
+    }
+
+    items_map.into_iter().map(|(id, items)| {
+        let qty = items.len() as i32;
+        let item = &items[0];  // Use first item for dimensions
+        let size = item.size_xyz();
+        ItemInput {
+            shape_id: id,
+            name: item.name.clone(),
+            x: item.position_xyz[0],
+            y: item.position_xyz[1],
+            z: item.position_xyz[2],
+            width: size[0],
+            height: size[1],
+            depth: size[2],
+            quantity: qty,
+        }
+    }).collect()
 }
