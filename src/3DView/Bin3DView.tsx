@@ -1,9 +1,8 @@
 import "../style/Bin3DView.css";
-import { useState, useMemo, useEffect } from 'react'
-import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import { useState } from 'react'
+import { Canvas } from '@react-three/fiber'
 import { Grid, PerspectiveCamera, Text } from '@react-three/drei'
-import { EdgesGeometry, LineSegments, LineBasicMaterial, AxesHelper, BoxGeometry, Color, SRGBColorSpace, DoubleSide, CanvasTexture, PlaneGeometry, MeshStandardMaterial } from "three";
-import { Reflector } from 'three/examples/jsm/objects/Reflector.js';
+import { EdgesGeometry, LineSegments, LineBasicMaterial, AxesHelper, BoxGeometry, Color, SRGBColorSpace, DoubleSide } from "three";
 import { Perf } from 'r3f-perf';
 
 import { Bin, Item, FreeSpace } from "../BinData";

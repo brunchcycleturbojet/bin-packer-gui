@@ -326,9 +326,9 @@ const TestData = {
 
 const HLJData = {
   "bin": {
-    "width": 48,
-    "height": 35,
-    "depth": 33
+    "width": 48.1,
+    "height": 35.5,
+    "depth": 33.6
   },
   "items": [
     {

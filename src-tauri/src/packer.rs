@@ -231,8 +231,7 @@ impl BinPacker3D {
     }
 
     fn best_orientation(space: &Space, item: &Item) -> ([Dimension; 3], Vec<Space>) {
-        let space_xyz_dims = space.as_xyz();
-        let item_xyz_dims = item.as_xyz();
+        let b_dims_xyz = space.as_xyz();
         let mut b_dims = space.size.clone();
         let mut item_dims = item.size.clone();
         let mut remainder_blocks: Vec<Space> = Vec::new();
@@ -244,39 +243,40 @@ impl BinPacker3D {
         // Build the orientation of the item, side by side
         // First pass: Choose the shortest side of the box we can stack the item twice on its longest side,
         // Otherwise, try for an exact fit between the box and item dims
-        let mut side_1: Option<usize> = None;
+        let mut side_1_index: Option<usize> = None;
         for (i, b_dim) in b_dims.iter().enumerate() {
             if b_dim.length >= item_dims[2].length * 2.0 {
-                side_1 = Some(i);
+                side_1_index = Some(i);
                 break;
             } 
             else if eq_tol(b_dim.length, item_dims[2].length) {
-                side_1 = Some(i);
+                side_1_index = Some(i);
                 break;
             }
         }
 
         // If no suitable side was found, just go for the first fit
-        if side_1.is_none() {
+        if side_1_index.is_none() {
             for (i, b_dim) in b_dims.iter().enumerate() {
                 if b_dim.length >= item_dims[2].length {
-                    side_1 = Some(i);
+                    side_1_index = Some(i);
                     break;
                 }
             }
         }
 
-        let mut dim_1 = item_dims[0].clone();
+        // Orient the longest item's side to the chosen box side
+        let mut dim_1 = item_dims[2].clone();
+        dim_1.axis = b_dims[side_1_index.unwrap()].axis.clone(); 
+
+        // Determine the orientation for the other two sides, preferring the combination that will have the largest singular volume
+        let (side_2, side_3) = Self::get_side_2_side_3(&item_dims, &b_dims, side_1_index.unwrap());
         let mut dim_2 = item_dims[1].clone();
-        let mut dim_3 = item_dims[2].clone();
-        dim_3.axis = b_dims[side_1.unwrap()].axis.clone(); // Orient the longest item side to the chosen box side
-
-        // Determine the orientation for the other two sides, preferring the combination that leaves the largest contiguous leftover volume
-        let (side_2, side_3) = Self::get_side_2_side_3(&item_dims, &b_dims, side_1.unwrap());
+        let mut dim_3 = item_dims[0].clone();
         dim_2.axis = b_dims[side_2].axis.clone();
-        dim_1.axis = b_dims[side_3].axis.clone();
+        dim_3.axis = b_dims[side_3].axis.clone();
 
-        let orientation = [dim_1, dim_2, dim_3];
+        let orientation = [dim_3, dim_2, dim_1];
         let orientation_xyz: [f64; 3] = orientation.iter().fold([0.0, 0.0, 0.0], |mut acc, dim| {
             acc[dim.axis] = dim.length;
             acc
@@ -286,8 +286,8 @@ impl BinPacker3D {
         {
             let mut xyz = space.position_xyz.clone();
             let mut size = orientation_xyz.clone();
-            xyz[dim_3.axis] += dim_3.length;
-            size[dim_3.axis] = space_xyz_dims[dim_3.axis] - dim_3.length;
+            xyz[dim_1.axis] += dim_1.length;
+            size[dim_1.axis] = b_dims_xyz[dim_1.axis] - dim_1.length;
 
             remainder_blocks.push(Space {
                 position_xyz: xyz,
@@ -306,9 +306,9 @@ impl BinPacker3D {
         let block_3b: Space;
         {
             let mut xyz = space.position_xyz.clone();
-            let mut size = space_xyz_dims.clone();
-            xyz[b_dims[side_3].axis] += item_dims[0].length;
-            size[b_dims[side_3].axis] -= item_dims[0].length;
+            let mut size = b_dims_xyz.clone();
+            xyz[dim_3.axis] += item_dims[0].length;
+            size[dim_3.axis] -= item_dims[0].length;
             block_2a = Space {
                 position_xyz: xyz,
                 size: [
@@ -320,11 +320,11 @@ impl BinPacker3D {
         }
         {
             let mut xyz = space.position_xyz.clone();
-            let mut size = space_xyz_dims.clone();
-            xyz[b_dims[side_2].axis] += item_dims[1].length;
-            size[b_dims[side_2].axis] -= item_dims[1].length;
+            let mut size = b_dims_xyz.clone();
+            xyz[dim_2.axis] += item_dims[1].length;
+            size[dim_2.axis] -= item_dims[1].length;
 
-            size[b_dims[side_3].axis] = item_dims[0].length;
+            size[dim_3.axis] = item_dims[0].length;
             block_3a = Space {
                 position_xyz: xyz,
                 size: [
@@ -336,9 +336,9 @@ impl BinPacker3D {
         }
         {
             let mut xyz = space.position_xyz.clone();
-            let mut size = space_xyz_dims.clone();
-            xyz[b_dims[side_2].axis] += item_dims[1].length;
-            size[b_dims[side_2].axis] = b_dims[side_2].length - item_dims[1].length;
+            let mut size = b_dims_xyz.clone();
+            xyz[dim_2.axis] += item_dims[1].length;
+            size[dim_2.axis] = space.size[dim_2.axis].length - item_dims[1].length;
             block_2b = Space {
                 position_xyz: xyz,
                 size: [
@@ -350,11 +350,11 @@ impl BinPacker3D {
         }
         {
             let mut xyz = space.position_xyz.clone();
-            let mut size = space_xyz_dims.clone();
-            xyz[b_dims[side_3].axis] += item_dims[0].length;
-            size[b_dims[side_3].axis] = b_dims[side_3].length - item_dims[0].length;
+            let mut size = b_dims_xyz.clone();
+            xyz[dim_3.axis] += item_dims[0].length;
+            size[dim_3.axis] = space.size[dim_3.axis].length - item_dims[0].length;
 
-            size[b_dims[side_2].axis] = item_dims[1].length;
+            size[dim_2.axis] = item_dims[1].length;
             block_3b = Space {
                 position_xyz: xyz,
                 size: [
@@ -365,8 +365,11 @@ impl BinPacker3D {
             };
         }
 
-        // Choose the combination that has the largest contiguous volume
-        if block_2a.volume() > block_2b.volume() {
+        // Select the option where block 2 and 3 are closest in size
+        // This heuristic is used in the Shotput algo which claims to be 5-15% more accurate than
+        // using 2a > 2b, but hasn't confirmed and tested here. However, 2a > 2b does lead to poor space
+        // use in some cases like packing many cubes.
+        if block_2a.volume() < block_2b.volume() {
             remainder_blocks.push(block_2a);
             remainder_blocks.push(block_3a);
         } else {
@@ -387,24 +390,22 @@ impl BinPacker3D {
     // based on size constraints, then returns the sides that leave the largest bulk volume in the box.
     // item_dims and box_dims are assumed to be sorted in ascending size.
     fn get_side_2_side_3(item_dims: &[Dimension], box_dims: &[Dimension], side_1: usize) -> (usize, usize) {
-        let side_2: usize;
-        let side_3: usize;
 
-        let minus_1 = (side_1 + 2) % 3; 
-        let minus_2 = (side_1 + 1) % 3;
+        let other_1 = (side_1 + 1) % 3; 
+        let other_2 = (side_1 + 2) % 3;
 
-        if item_dims[1].length > box_dims[minus_1].length {
-            side_2 = minus_2;
-            side_3 = minus_1;
-        } else if item_dims[1].length > box_dims[minus_2].length {
-            side_2 = minus_1;
-            side_3 = minus_2;
+        let (shorter_box_dim_index, longer_box_dim_index)  = if box_dims[other_1].length < box_dims[other_2].length {
+            (other_1, other_2)
         } else {
-            side_2 = (side_1 + 1) % 3;
-            side_3 = (side_1 + 2) % 3;
-        }
+            (other_2, other_1)
+        };
 
-        (side_2, side_3)
+        // Try to fit the second longest item dim on the next shortest box dim for best fit, otherwise we have to orient it the other way
+        if item_dims[1].length <= box_dims[shorter_box_dim_index].length {
+            (shorter_box_dim_index, longer_box_dim_index)
+        } else {
+            (longer_box_dim_index, shorter_box_dim_index)
+        }
     }
 
     // Defragments free spaces by merging adjacent blocks that share a complete face
@@ -577,80 +578,4 @@ fn fits(container: &Space, to_fit: &Item) -> bool {
     sorted_size_a[0] >= sorted_size_b[0] && 
     sorted_size_a[1] >= sorted_size_b[1] && 
     sorted_size_a[2] >= sorted_size_b[2]
-}
-
-
-// ----------------------------------------------------------------
-// Unit tests
-// TODO: Flesh out tests more! Ideally, these should be run during development, but the logic layout changed so much throughout
-//  that doing them after the fact was easier...
-//  - Check for overlapping items (expensive with many items, but no way around it)
-//  - Isolate orientation case logic
-
-#[test]
-fn test_pack_all_items_in_bin() {
-    // Test data: 10x10x10 bin, three items that fit
-    let bin = Bin {
-        width: 10.0,
-        height: 10.0,
-        depth: 10.0,
-    };
-    let items: Vec<Item> = vec![
-        Item {
-            id: 0,
-            name: "item_1".to_string(),
-            position_xyz: [0.0, 0.0, 0.0],
-            size: [
-                Dimension { length: 5.0, axis: AxisSize::Width },
-                Dimension { length: 5.0, axis: AxisSize::Height },
-                Dimension { length: 5.0, axis: AxisSize::Depth },
-            ],
-        },
-        Item {
-            id: 1,
-            name: "item_2".to_string(),
-            position_xyz: [0.0, 0.0, 0.0],
-            size: [
-                Dimension { length: 10.0, axis: AxisSize::Width },
-                Dimension { length: 5.0, axis: AxisSize::Height },
-                Dimension { length: 10.0, axis: AxisSize::Depth },
-            ],
-        },
-        Item {
-            id: 2,
-            name: "item_3".to_string(),
-            position_xyz: [0.0, 0.0, 0.0],
-            size: [
-                Dimension { length: 10.0, axis: AxisSize::Width },
-                Dimension { length: 5.0, axis: AxisSize::Height },
-                Dimension { length: 5.0, axis: AxisSize::Depth },
-            ],
-        },
-    ];
-
-    // Pack the items into the bin
-    let result = BinPacker3D::pack(bin, items);
-
-    // Assert that all items were placed
-    assert_eq!(result.placed.len(), 3, "Both items should be placed in the bin");
-    assert_eq!(result.unplaced.len(), 0, "No items should be unplaced");
-
-    // Verify that each placed item is within the bin bounds
-    for item in &result.placed {
-        assert!(
-            item.position_xyz[0] + item.size[0].length <= result.bin.width,
-            "Item {} extends beyond bin width",
-            item.id
-        );
-        assert!(
-            item.position_xyz[1] + item.size[1].length <= result.bin.height,
-            "Item {} extends beyond bin height",
-            item.id
-        );
-        assert!(
-            item.position_xyz[2] + item.size[2].length <= result.bin.depth,
-            "Item {} extends beyond bin depth",
-            item.id
-        );
-    }
 }

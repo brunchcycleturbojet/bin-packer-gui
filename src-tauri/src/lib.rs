@@ -20,48 +20,6 @@ fn pack_bin(json: &str) -> String {
     // Do packing
     let result = BinPacker3D::pack(bin, items);
 
-
-    // // TEMP TEST: Many many items!
-    // // Packs pretty quickly, but has gaps and overlapping spaces.
-    // let bin = Bin {
-    //     width: 50.0,
-    //     height: 14.0,
-    //     depth: 50.0,
-    // };
-
-    // let mut items: Vec<Item> = Vec::new();
-    // let mut item_id = 0;
-
-    // for _ in 0..1024 {
-    //     items.push(Item {
-    //         id: item_id,
-    //         name: "small".to_string(),
-    //         position_xyz: [0.0, 0.0, 0.0],
-    //         size: [
-    //             Dimension { length: 2.0, axis: AxisSize::Width },
-    //             Dimension { length: 2.0, axis: AxisSize::Height },
-    //             Dimension { length: 2.0, axis: AxisSize::Depth },
-    //         ],
-    //     });
-    //     item_id += 1;
-    // }
-
-    // for _ in 0..1024 {
-    //     items.push(Item {
-    //         id: item_id,
-    //         name: "medium".to_string(),
-    //         position_xyz: [0.0, 0.0, 0.0],
-    //         size: [
-    //             Dimension { length: 3.0, axis: AxisSize::Width },
-    //             Dimension { length: 3.0, axis: AxisSize::Height },
-    //             Dimension { length: 3.0, axis: AxisSize::Depth },
-    //         ],
-    //     });
-    //     item_id += 1;
-    // }
-    // let result = BinPacker3D::pack(bin, items);
-
-
     println!("Container: {}x{}x{}", result.bin.width, result.bin.height, result.bin.depth);
     println!("Time taken to pack: {} ms", result.time_to_pack);
     println!("Bin usage percentage: {:.2}%", result.bin_usage_percentage);
@@ -105,6 +63,9 @@ fn save_bin_and_items(json: &str, file_name: &str) -> String {
 fn load_bin_and_items(file_name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", file_name)
 }
+
+#[cfg(test)]
+mod packer_test;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
