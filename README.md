@@ -3,6 +3,7 @@
 ![](/public/prototype.png)
 
 **STATUS**: Very WIP! A lot of unresolved TODOs and comments leftover. But the algo seems to be generally working for small cases.
+**CURRENT FOCUS**: Cleanup warnings, todos
 
 Lightweight desktop app implementation of the bin packing problem, in 3D.
 Made as a vehicle for learning and messing around with Three.js and Rust!
