@@ -1,7 +1,8 @@
 import "./style/App.css";
-import { Bin, Item, FreeSpace } from "./BinData";
+import { Bin, Item, FreeSpace, LoadOutput, PackerOutput } from "./BinData";
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { open, save } from "@tauri-apps/plugin-dialog";
 
 interface PackerTableProps {
   bin: Bin;
@@ -12,16 +13,16 @@ interface PackerTableProps {
 }
 
 function PackerTable({ bin, items: _items, onItemsPacked, onBinPacked, onFreeSpacesPacked }: PackerTableProps) {
-
+  const [getPendingBin, setPendingBin] = useState<Bin>(bin);
   const [getPendingItems, setPendingItems] = useState<Item[]>([]);
 
   // Run packing algo
   async function pack_bin() {
     const payload = {
       bin: {
-        width: bin.width,
-        height: bin.height,
-        depth: bin.depth,
+        width: getPendingBin.width,
+        height: getPendingBin.height,
+        depth: getPendingBin.depth,
       },
       items: getPendingItems,
     };
@@ -32,7 +33,7 @@ function PackerTable({ bin, items: _items, onItemsPacked, onBinPacked, onFreeSpa
     if (!result) {
       console.error("pack_bin returned no data");
     } else {
-      const parsedJSON = JSON.parse(result);
+      const parsedJSON: PackerOutput = JSON.parse(result);
       const newBin: Bin = parsedJSON.bin;
       const newItems: Item[] = parsedJSON.items;
       const newFreeSpaces: FreeSpace[] = parsedJSON.free_spaces;
@@ -50,8 +51,67 @@ function PackerTable({ bin, items: _items, onItemsPacked, onBinPacked, onFreeSpa
   }
 
   // Load a bin from file
+  async function loadBinFromFile() {
+    try {
+      const filePath = await open({
+        filters: [{ name: "JSON", extensions: ["json"] }],
+        directory: false,
+      });
+
+      if (!filePath) return; // User cancelled
+
+      console.log("Selected file:", filePath);
+      const result: string = await invoke("load_bin_and_items", { filePath });
+      if (!result) {
+        alert("Failed to load file");
+        return;
+      }
+
+      const parsedJSON: LoadOutput = JSON.parse(result);
+      setPendingBin(parsedJSON.pack_input.bin);
+      setPendingItems(parsedJSON.pack_input.items); 
+
+      onBinPacked?.(parsedJSON.pack_result.bin);
+      onItemsPacked?.(parsedJSON.pack_result.items);
+      onFreeSpacesPacked?.(parsedJSON.pack_result.free_spaces);
+
+    } catch (error) {
+      console.error("Error loading file:", error);
+      alert("Error loading file");
+    }
+  }
 
   // Save a bin to file
+  async function saveBinToFile() {
+    try {
+      const filePath = await save({
+        filters: [{ name: "JSON", extensions: ["json"] }],
+      });
+
+      if (!filePath) return; // User cancelled
+
+      const payload = {
+        bin: {
+          width: bin.width,
+          height: bin.height,
+          depth: bin.depth,
+        },
+        items: getPendingItems,
+      };
+
+      const json = JSON.stringify(payload);
+
+      const result: string = await invoke("save_bin_and_items", { json, filePath });
+      if (result) {
+        alert(`Saved to ${result}`);
+      } else {
+        alert("Failed to save file");
+      }
+    } catch (error) {
+      console.error("Error saving file:", error);
+      alert("Error saving file");
+    }
+  }
 
   // Add new item, with default parameters
   function addItem() {
@@ -129,11 +189,13 @@ function PackerTable({ bin, items: _items, onItemsPacked, onBinPacked, onFreeSpa
     );
   }
 
-  const binDescription = `(${bin.width}×${bin.height}×${bin.depth})`;
+  const binDescription = `(${getPendingBin.width}×${getPendingBin.height}×${getPendingBin.depth})`;
   return (
     <>
       <div>
         {renderPackButton()}
+        <button onClick={() => loadBinFromFile()}>Load</button>
+        <button onClick={() => saveBinToFile()}>Save</button>
         {renderAddItemButton()}
         <h2>Bin: {binDescription}</h2>
       </div>

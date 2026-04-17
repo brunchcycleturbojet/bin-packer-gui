@@ -1,13 +1,9 @@
 export class Bin {
-  id = "";
   width = 0;
   height = 0;
   depth = 0;
 
-  items: Array<Item> = [];
-
-  constructor(id: string, w: number, h: number, d: number) {
-    this.id = id;
+  constructor(w: number, h: number, d: number) {
     this.width = w;
     this.height = h;
     this.depth = d;
@@ -56,6 +52,11 @@ export type PackerOutput = {
   items: Item[],
   free_spaces: FreeSpace[],
   unpacked_items?: Item[],
+}
+
+export type LoadOutput = {
+  pack_input: PackerInput,
+  pack_result: PackerOutput,
 }
 
 /**

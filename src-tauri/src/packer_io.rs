@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
-use crate::packer::{Bin, Item, PackResult, Dimension, AxisSize, Dimensional};
+use crate::{packer::{AxisSize, Bin, BinPacker3D, Dimension, Dimensional, Item, PackResult}};
 
 #[derive(Serialize)]
-struct ItemOutput {
+pub struct ItemOutput {
     shape_id: i32,
     name: String,
     x: f64,
@@ -14,7 +14,7 @@ struct ItemOutput {
 }
 
 #[derive(Serialize)]
-struct SpaceOutput {
+pub struct SpaceOutput {
     x: f64,
     y: f64,
     z: f64,
@@ -24,7 +24,7 @@ struct SpaceOutput {
 }
 
 #[derive(Serialize, Deserialize)]
-struct ItemInput {
+pub struct ItemInput {
     shape_id: i32,
     name: String,
     #[serde(default)]
@@ -46,17 +46,23 @@ fn default_quantity() -> i32 {
 }
 
 #[derive(Serialize)]
-struct PackingDataOutput {
-    bin: Bin,
-    items: Vec<ItemOutput>,
-    unpacked_items: Vec<ItemOutput>,
-    free_spaces: Vec<SpaceOutput>,
+pub struct PackingDataOutput {
+    pub bin: Bin,
+    pub items: Vec<ItemOutput>,
+    pub unpacked_items: Vec<ItemOutput>,
+    pub free_spaces: Vec<SpaceOutput>,
 }
 
 #[derive(Serialize, Deserialize)]
-struct PackingDataInput {
+pub struct PackingDataInput {
     bin: Bin,
     items: Vec<ItemInput>,
+}
+
+#[derive(Serialize)]
+pub struct LoadOutput {
+    pub pack_input: PackingDataInput,
+    pub pack_result: PackingDataOutput,
 }
 
 pub fn parse_bin_json(json: &str) -> Result<(Bin, Vec<Item>), serde_json::Error> {
@@ -68,7 +74,7 @@ pub fn parse_bin_json(json: &str) -> Result<(Bin, Vec<Item>), serde_json::Error>
     Ok((bin, items))
 }
 
-pub fn convert_bin_json(result: PackResult) -> Result<String, serde_json::Error> {
+fn convert_to_packing_data(result: PackResult) -> PackingDataOutput {
     let unpacked_items: Vec<ItemOutput> = result.unplaced.iter().map(|item| {
         let size = item.size_xyz();
         ItemOutput {
@@ -109,14 +115,16 @@ pub fn convert_bin_json(result: PackResult) -> Result<String, serde_json::Error>
         }
     }).collect();
 
-    let packing_data = PackingDataOutput {
+    PackingDataOutput {
         bin: result.bin,
         items: placed_items,
         unpacked_items: unpacked_items,
         free_spaces: free_spaces_output,
-    };
+    }
+}
 
-    serde_json::to_string(&packing_data)
+pub fn convert_bin_json(result: PackResult) -> Result<String, serde_json::Error> {
+    serde_json::to_string(&convert_to_packing_data(result))
 }
 
 pub fn write_bin_to_file(bin: &Bin, items: Vec<Item>, file_name: &str) -> std::io::Result<()> {
@@ -129,11 +137,44 @@ pub fn write_bin_to_file(bin: &Bin, items: Vec<Item>, file_name: &str) -> std::i
     std::fs::write(file_name, json_data)
 }
 
-pub fn load_bin_from_file(file_name: &str) -> std::io::Result<(Bin, Vec<Item>)> {
-    let json_data = std::fs::read_to_string(file_name)?;
-    match parse_bin_json(&json_data) {
-        Ok((bin, items)) => Ok((bin, items)),
-        Err(e) => Err(std::io::Error::new(std::io::ErrorKind::InvalidData, e)),
+pub fn load_bin_from_file(file_path: &str) -> std::io::Result<String> {
+    let input_json = std::fs::read_to_string(file_path)?;
+    
+    // Parse the input JSON and store it for output later
+    let pack_input: PackingDataInput = match serde_json::from_str(&input_json) {
+        Ok(data) => data,
+        Err(e) => {
+            eprintln!("Error parsing JSON from file: {}", e);
+            return Ok(String::new());
+        }
+    };
+    let (bin, items) = match parse_bin_json(&input_json) {
+        Ok((bin, items)) => (bin, items),
+        Err(e) => {
+            eprintln!("Error parsing JSON from file: {}", e);
+            return Ok(String::new());
+        }
+    };
+
+    // Do packing, format the result
+    let result = BinPacker3D::pack(bin, items);
+    println!("--- Loaded bin and packed ---");
+    println!("Container: {}x{}x{}", result.bin.width, result.bin.height, result.bin.depth);
+    println!("Time taken to pack: {} ms", result.time_to_pack);
+    println!("Bin usage percentage: {:.2}%", result.bin_usage_percentage);
+    println!("Packed {} items, {} items could not be packed", result.placed.len(), result.unplaced.len());
+    let pack_output = convert_to_packing_data(result);
+
+    let output = LoadOutput {
+        pack_input,
+        pack_result: pack_output,
+    };
+    match serde_json::to_string(&output) {
+        Ok(json) => Ok(json),
+        Err(e) => {
+            eprintln!("Error serializing output: {}", e);
+            Ok(String::new())
+        }
     }
 }
 
@@ -157,8 +198,7 @@ fn expand_items(input_items: Vec<ItemInput>) -> Vec<Item> {
     items
 }
 
-// Processes items by collapsing same ids into one, returning ItemInput with quantity tracking.
-fn group_items(items: Vec<Item>) -> Vec<ItemInput> {
+pub fn group_items(items: Vec<Item>) -> Vec<ItemInput> {
     use std::collections::HashMap;
 
     let mut items_map: HashMap<i32, Vec<Item>> = HashMap::new();

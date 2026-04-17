@@ -1,0 +1,64 @@
+{
+  "bin": {
+    "width": 3,
+    "height": 2,
+    "depth": 2
+  },
+  "items": [
+    {
+      "shape_id": 0,
+      "name": "example1",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 1,
+      "height": 0.5,
+      "depth": 1,
+      "quantity": 1
+    },
+    {
+      "shape_id": 1,
+      "name": "example1",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 2,
+      "height": 1,
+      "depth": 1,
+      "quantity": 1
+    },
+    {
+      "shape_id": 2,
+      "name": "example1",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 1,
+      "height": 0.4,
+      "depth": 1,
+      "quantity": 1
+    },
+    {
+      "shape_id": 3,
+      "name": "example1",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 1,
+      "height": 1,
+      "depth": 1,
+      "quantity": 1
+    },
+    {
+      "shape_id": 4,
+      "name": "example1",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 3,
+      "height": 0.2,
+      "depth": 1,
+      "quantity": 1
+    }
+  ]
+}

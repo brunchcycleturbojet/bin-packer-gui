@@ -39,8 +39,7 @@ fn pack_bin(json: &str) -> String {
 }
 
 #[tauri::command]
-fn save_bin_and_items(json: &str, file_name: &str) -> String {
-    let file_path = format!("{}.json", file_name);
+fn save_bin_and_items(json: &str, file_path: &str) -> String {
 
     // Parse the input JSON
     let (bin, items) = match parse_bin_json(json) {
@@ -51,8 +50,8 @@ fn save_bin_and_items(json: &str, file_name: &str) -> String {
         }
     };
 
-    match write_bin_to_file(&bin, items, file_name) {
-        Ok(_) => file_path,
+    match write_bin_to_file(&bin, items, file_path) {
+        Ok(_) => file_path.to_string(),
         Err(e) => {
             eprintln!("Error writing to file: {}", e);
             String::new() // Empty response on error
@@ -61,8 +60,16 @@ fn save_bin_and_items(json: &str, file_name: &str) -> String {
 }
 
 #[tauri::command]
-fn load_bin_and_items(file_name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", file_name)
+fn load_bin_and_items(file_path: &str) -> String {
+    match crate::packer_io::load_bin_from_file(file_path) {
+        Ok(result) => {
+            result
+        },
+        Err(e) => {
+            eprintln!("Error loading file: {}", e);
+            String::new() // Empty response on error
+        }
+    }
 }
 
 #[cfg(test)]
@@ -72,7 +79,8 @@ mod packer_test;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![pack_bin])
+        .plugin(tauri_plugin_dialog::init())
+        .invoke_handler(tauri::generate_handler![pack_bin, save_bin_and_items, load_bin_and_items])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

@@ -5,7 +5,7 @@ import {Bin, Item, FreeSpace} from "./BinData";
 import Bin3DView from "./3DView/Bin3DView";
 import PackerTable from "./PackerTable";
 
-const initialBin: Bin = new Bin("Untitled bin", 4, 4, 4);
+const initialBin: Bin = new Bin(4, 4, 4);
 const initialItems: Item[] = [];
 const initialFreeSpaces: FreeSpace[] = [];
 

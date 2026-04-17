@@ -1,0 +1,20 @@
+{
+  "bin": {
+    "width": 48,
+    "height": 35,
+    "depth": 33
+  },
+  "items": [
+    {
+      "shape_id": 0,
+      "name": "ao kiriyama liger",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 31,
+      "height": 19.5,
+      "depth": 12,
+      "quantity": 6
+    }
+  ]
+}

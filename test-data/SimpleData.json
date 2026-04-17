@@ -1,0 +1,53 @@
+{
+  "bin": {
+    "width": 3.0,
+    "height": 5.0,
+    "depth": 3.0
+  },
+  "items": [
+    {
+      "shape_id": 0,
+      "name": "example1",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 2.0,
+      "height": 1.0,
+      "depth": 3.0,
+      "quantity": 1
+    },
+    {
+      "shape_id": 1,
+      "name": "example1",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 1.0,
+      "height": 3.0,
+      "depth": 2.0,
+      "quantity": 1
+    },
+    {
+      "shape_id": 2,
+      "name": "example1",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 1.0,
+      "height": 1.0,
+      "depth": 5.0,
+      "quantity": 1
+    },
+    {
+      "shape_id": 3,
+      "name": "example1",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 1.0,
+      "height": 1.0,
+      "depth": 4.0,
+      "quantity": 1
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "bin": {
+    "width": 7,
+    "height": 3,
+    "depth": 6
+  },
+  "items": [
+    {
+      "shape_id": 0,
+      "name": "cube1",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "width": 2,
+      "height": 2,
+      "depth": 2,
+      "quantity": 9
+    }
+  ]
+}
