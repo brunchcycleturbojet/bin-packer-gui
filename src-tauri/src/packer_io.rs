@@ -57,17 +57,15 @@ struct PackingDataOutput {
 struct PackingDataInput {
     bin: Bin,
     items: Vec<ItemInput>,
-    unpacked_items: Vec<ItemInput>,
 }
 
-pub fn parse_bin_json(json: &str) -> Result<(Bin, Vec<Item>, Vec<Item>), serde_json::Error> {
+pub fn parse_bin_json(json: &str) -> Result<(Bin, Vec<Item>), serde_json::Error> {
     let data: PackingDataInput = serde_json::from_str(json)?;
 
     let bin = data.bin;
     let items = expand_items(data.items);
-    let unpacked_items = expand_items(data.unpacked_items);
 
-    Ok((bin, items, unpacked_items))
+    Ok((bin, items))
 }
 
 pub fn convert_bin_json(result: PackResult) -> Result<String, serde_json::Error> {
@@ -121,21 +119,20 @@ pub fn convert_bin_json(result: PackResult) -> Result<String, serde_json::Error>
     serde_json::to_string(&packing_data)
 }
 
-pub fn write_bin_to_file(bin: &Bin, items: Vec<Item>, unpacked: Vec<Item>, file_name: &str) -> std::io::Result<()> {
+pub fn write_bin_to_file(bin: &Bin, items: Vec<Item>, file_name: &str) -> std::io::Result<()> {
     let packing_data = PackingDataInput {
         bin: bin.clone(),
         items: group_items(items),
-        unpacked_items: group_items(unpacked),
     };
 
     let json_data = serde_json::to_string_pretty(&packing_data)?;
     std::fs::write(file_name, json_data)
 }
 
-pub fn load_bin_from_file(file_name: &str) -> std::io::Result<(Bin, Vec<Item>, Vec<Item>)> {
+pub fn load_bin_from_file(file_name: &str) -> std::io::Result<(Bin, Vec<Item>)> {
     let json_data = std::fs::read_to_string(file_name)?;
     match parse_bin_json(&json_data) {
-        Ok((bin, items, unpacked)) => Ok((bin, items, unpacked)),
+        Ok((bin, items)) => Ok((bin, items)),
         Err(e) => Err(std::io::Error::new(std::io::ErrorKind::InvalidData, e)),
     }
 }

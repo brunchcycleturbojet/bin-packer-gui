@@ -9,8 +9,8 @@ mod packer;
 fn pack_bin(json: &str) -> String {
 
     // Parse the input JSON
-    let (bin, items, _unpacked) = match parse_bin_json(json) {
-        Ok((bin, items, unpacked)) => (bin, items, unpacked),
+    let (bin, items) = match parse_bin_json(json) {
+        Ok((bin, items)) => (bin, items),
         Err(e) => {
             eprintln!("Error parsing JSON: {}", e);
             return String::new(); // Empty JSON response on error
@@ -43,15 +43,15 @@ fn save_bin_and_items(json: &str, file_name: &str) -> String {
     let file_path = format!("{}.json", file_name);
 
     // Parse the input JSON
-    let (bin, items, unpacked) = match parse_bin_json(json) {
-        Ok((bin, items, unpacked)) => (bin, items, unpacked),
+    let (bin, items) = match parse_bin_json(json) {
+        Ok((bin, items)) => (bin, items),
         Err(e) => {
             eprintln!("Error parsing JSON: {}", e);
             return String::new(); // Empty response on error
         }
     };
 
-    match write_bin_to_file(&bin, items, unpacked, file_name) {
+    match write_bin_to_file(&bin, items, file_name) {
         Ok(_) => file_path,
         Err(e) => {
             eprintln!("Error writing to file: {}", e);

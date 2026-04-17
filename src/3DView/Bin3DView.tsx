@@ -41,9 +41,11 @@ function Bin3DView({ bin, items, freeSpaces }: Bin3DViewProps) {
       const minVolume = Math.min(...volumes);
       const maxVolume = Math.max(...volumes);
       
-      return items.map((item) => (
-        <ItemBox key={item.shape_id} item={item} minVolume={minVolume} maxVolume={maxVolume} />
-      ));
+      var renderId = -1; // Note that shape_id is not unique per item
+      return items.map((item) => {
+        renderId++;
+        return <ItemBox key={renderId} item={item} minVolume={minVolume} maxVolume={maxVolume} />;
+      });
     }
 
     return null;
@@ -110,7 +112,7 @@ function ItemBox({ item, minVolume, maxVolume }: { item: Item; minVolume: number
   const wireframeColor = new Color().copy(lowestVolumeWireColour).lerpHSL(highestVolumeWireColour, volumeNormalized);
   
   return (
-    <group key={item.shape_id} position={[item.x + item.width / 2, item.y + item.height / 2 + YOffsetFromFloor, item.z + item.depth / 2]}>
+    <group position={[item.x + item.width / 2, item.y + item.height / 2 + YOffsetFromFloor, item.z + item.depth / 2]}>
       <mesh>
         {/* Box (slightly smaller to prevent z-fighting on outline) */}
         <boxGeometry args={[item.width*shrinkMultiplier, item.height*shrinkMultiplier, item.depth*shrinkMultiplier]} />
