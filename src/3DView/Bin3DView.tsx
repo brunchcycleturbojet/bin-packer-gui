@@ -39,11 +39,13 @@ function Bin3DView({ bin, items, freeSpaces }: Bin3DViewProps) {
       return null;
     }
 
-    // Calculate min and max dimension sums for color mapping
-    // Note we don't use volume since shapes with different dimensions can have the same volume
+    // Determine values for colour mapping based on the following metrics:
     const dimensionSums = items.map(item => item.width + item.height + item.depth);
+    const volumes = items.map(item => item.width * item.height * item.depth);
     const minSum = Math.min(...dimensionSums);
     const maxSum = Math.max(...dimensionSums);
+    const minVolume = Math.min(...volumes);
+    const maxVolume = Math.max(...volumes);
 
     // Group items by shape_id
     const groupedByShapeId = new Map<number, Item[]>();
@@ -56,14 +58,34 @@ function Bin3DView({ bin, items, freeSpaces }: Bin3DViewProps) {
     });
 
     // Render each shape group as an InstancedMesh
-    return Array.from(groupedByShapeId.entries()).map(([shapeId, itemsWithSameShape]) => (
-      <ItemBoxGroup 
-        key={`shape-${shapeId}`} 
-        items={itemsWithSameShape} 
-        minSum={minSum} 
-        maxSum={maxSum} 
-      />
-    ));
+    return Array.from(groupedByShapeId.entries()).map(([shapeId, itemsWithSameShape]) => {
+      // Calculate colours based on first item's dimension sum and volume (all items in group have same dimensions)
+      const dimensionSum = itemsWithSameShape[0].width + itemsWithSameShape[0].height + itemsWithSameShape[0].depth;
+      const volume = itemsWithSameShape[0].width * itemsWithSameShape[0].height * itemsWithSameShape[0].depth;
+      
+      const sumNormalized = maxSum === minSum ? 0.0 : (dimensionSum - minSum) / (maxSum - minSum);
+      const volumeNormalized = maxVolume === minVolume ? 0.0 : (volume - minVolume) / (maxVolume - minVolume);
+      
+      // Combine both metrics (average them for balanced influence)
+      const combinedMetric = (sumNormalized + volumeNormalized) / 2;
+
+      const lowestSumColour = new Color().setHSL(27 / 360, 0.96, 0.55, SRGBColorSpace);
+      const highestSumColour = new Color().setHSL(215 / 360, 0.65, 0.53, SRGBColorSpace);
+      const boxColor = new Color().copy(lowestSumColour).lerpHSL(highestSumColour, combinedMetric);
+
+      const lowestSumWireColour = new Color().setHSL(0 / 360, 0.7, 0.3, SRGBColorSpace);
+      const highestSumWireColour = new Color().setHSL(244 / 360, 0.7, 0.4, SRGBColorSpace);
+      const wireframeColor = new Color().copy(lowestSumWireColour).lerpHSL(highestSumWireColour, combinedMetric);
+
+      return (
+        <ItemBoxGroup 
+          key={`shape-${shapeId}`} 
+          items={itemsWithSameShape} 
+          boxColor={boxColor}
+          wireframeColor={wireframeColor}
+        />
+      );
+    });
   }
 
   // Generate semi-transparent boxes for free spaces
@@ -107,21 +129,9 @@ function Bin3DView({ bin, items, freeSpaces }: Bin3DViewProps) {
 export default Bin3DView;
 
 // Render items as boxes based on shape_id
-function ItemBoxGroup({ items, minSum, maxSum }: { items: Item[]; minSum: number; maxSum: number }) {
+function ItemBoxGroup({ items, boxColor, wireframeColor }: { items: Item[]; boxColor: Color; wireframeColor: Color }) {
   const YOffsetFromFloor = 0.001;
   const shrinkMultiplier = 0.999;
-
-  // Calculate colour based on first item's dimension sum (all items in group have same dimensions)
-  const dimensionSum = items[0].width + items[0].height + items[0].depth;
-  const sumNormalized = maxSum === minSum ? 0.0 : (dimensionSum - minSum) / (maxSum - minSum);
-
-  const lowestSumColour = new Color().setHSL(27 / 360, 0.96, 0.55, SRGBColorSpace);
-  const highestSumColour = new Color().setHSL(215 / 360, 0.65, 0.53, SRGBColorSpace);
-  const boxColor = new Color().copy(lowestSumColour).lerpHSL(highestSumColour, sumNormalized);
-
-  const lowestSumWireColour = new Color().setHSL(0 / 360, 0.7, 0.3, SRGBColorSpace);
-  const highestSumWireColour = new Color().setHSL(244 / 360, 0.7, 0.4, SRGBColorSpace);
-  const wireframeColor = new Color().copy(lowestSumWireColour).lerpHSL(highestSumWireColour, sumNormalized);
 
   const solidMeshRef = useRef<InstancedMesh>(null);
   const wireframeMeshRef = useRef<InstancedMesh>(null);
