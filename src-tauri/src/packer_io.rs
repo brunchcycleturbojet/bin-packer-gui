@@ -133,7 +133,7 @@ pub fn write_bin_to_file(bin: &Bin, items: Vec<Item>, file_name: &str) -> std::i
         items: group_items(items),
     };
 
-    let json_data = serde_json::to_string_pretty(&packing_data)?;
+    let json_data = serde_json::to_string_pretty(&packing_data)?; // Use pretty for human readability in saved files
     std::fs::write(file_name, json_data)
 }
 
@@ -199,9 +199,9 @@ fn expand_items(input_items: Vec<ItemInput>) -> Vec<Item> {
 }
 
 pub fn group_items(items: Vec<Item>) -> Vec<ItemInput> {
-    use std::collections::HashMap;
+    use indexmap::IndexMap;
 
-    let mut items_map: HashMap<i32, Vec<Item>> = HashMap::new();
+    let mut items_map: IndexMap<i32, Vec<Item>> = IndexMap::new();
     for item in items {
         items_map.entry(item.shape_id).or_insert_with(Vec::new).push(item);
     }
