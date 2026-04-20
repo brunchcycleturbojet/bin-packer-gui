@@ -1,4 +1,4 @@
-use crate::packer::{BinPacker3D};
+use crate::packer::{ BinPacker3D };
 
 use crate::packer_io::{convert_bin_json, parse_bin_json, write_bin_to_file};
 mod packer_io;

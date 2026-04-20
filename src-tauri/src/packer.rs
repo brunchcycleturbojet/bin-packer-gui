@@ -338,7 +338,7 @@ impl BinPacker3D {
             let mut xyz = space.position_xyz.clone();
             let mut size = b_dims_xyz.clone();
             xyz[dim_2.axis] += item_dims[1].length;
-            size[dim_2.axis] = space.size[dim_2.axis].length - item_dims[1].length;
+            size[dim_2.axis] = space.size_xyz()[dim_2.axis] - item_dims[1].length;
             block_2b = Space {
                 position_xyz: xyz,
                 size: [
@@ -352,7 +352,7 @@ impl BinPacker3D {
             let mut xyz = space.position_xyz.clone();
             let mut size = b_dims_xyz.clone();
             xyz[dim_3.axis] += item_dims[0].length;
-            size[dim_3.axis] = space.size[dim_3.axis].length - item_dims[0].length;
+            size[dim_3.axis] = space.size_xyz()[dim_3.axis] - item_dims[0].length;
 
             size[dim_2.axis] = item_dims[1].length;
             block_3b = Space {
@@ -431,33 +431,40 @@ impl BinPacker3D {
 
                     for axis in [AxisSize::Width, AxisSize::Height, AxisSize::Depth] {
                         let a_min = space_a.position_xyz[axis];
-                        let a_max = a_min + space_a.size[axis].length;
+                        let a_max = a_min + space_a.size_xyz()[axis];
                         let b_min = space_b.position_xyz[axis];
-                        let b_max = b_min + space_b.size[axis].length;
+                        let b_max = b_min + space_b.size_xyz()[axis];
 
                         let other_axes: Vec<AxisSize> = [AxisSize::Width, AxisSize::Height, AxisSize::Depth]
                             .into_iter()
                             .filter(|&a| a != axis) 
                             .collect();
-                        let face_dim_a1 = space_a.size[other_axes[0]].length;
-                        let face_dim_a2 = space_a.size[other_axes[1]].length;
-                        let face_dim_b1 = space_b.size[other_axes[0]].length;
-                        let face_dim_b2 = space_b.size[other_axes[1]].length;
+                        let face_dim_a1 = space_a.size_xyz()[other_axes[0]];
+                        let face_dim_a2 = space_a.size_xyz()[other_axes[1]];
+                        let face_dim_b1 = space_b.size_xyz()[other_axes[0]];
+                        let face_dim_b2 = space_b.size_xyz()[other_axes[1]];
+
+                        let is_aligned_on_candidate_axis = eq_tol(a_max, b_min) || eq_tol(b_max, a_min);
+                        let is_aligned_on_other_axes = 
+                            eq_tol(space_a.position_xyz[other_axes[0]], space_b.position_xyz[other_axes[0]]) 
+                            && eq_tol(space_a.position_xyz[other_axes[1]], space_b.position_xyz[other_axes[1]]);
+                        let has_matching_face_dims = eq_tol(face_dim_a1, face_dim_b1) && eq_tol(face_dim_a2, face_dim_b2);
 
                         // CASE 1: Blocks are positioned along a same axis and share a face exactly can be merged.
-                        if (eq_tol(a_max, b_min) || eq_tol(b_max, a_min)) && eq_tol(face_dim_a1, face_dim_b1) && eq_tol(face_dim_a2, face_dim_b2) 
+                        if is_aligned_on_candidate_axis && is_aligned_on_other_axes && has_matching_face_dims
                         {
                             let mut position_xyz = space_a.position_xyz.clone();
                             position_xyz[axis] = space_a.position_xyz[axis].min(space_b.position_xyz[axis]);
-                            let mut size = space_a.size.clone();
-                            size[axis] = Dimension {
-                                length: space_a.size[axis].length + space_b.size[axis].length,
-                                axis,
-                            };
+                            let mut size = space_a.size_xyz().clone();
+                            size[axis] = space_a.size_xyz()[axis] + space_b.size_xyz()[axis];
 
                             let merged = Space {
                                 position_xyz,
-                                size,
+                                size: [
+                                    Dimension { length: size[0], axis: AxisSize::Width },
+                                    Dimension { length: size[1], axis: AxisSize::Height },
+                                    Dimension { length: size[2], axis: AxisSize::Depth },
+                                ],
                             };
                             new_spaces.remove(j); 
                             new_spaces.remove(i);

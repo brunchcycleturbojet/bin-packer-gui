@@ -30,6 +30,7 @@ Visual/UX:
 - [x] Add/edit/remove item controls
 - [x] Save/load bin states
 - [ ] Report packed/unpacked in table format
+- [ ] Save pack results to temp file 
 - [ ] Wait for packing on non-ui thread
 - [ ] Control inputs guide
 - [ ] Colour sets for items (e.g based on size, user defined, random)

@@ -1,0 +1,42 @@
+{
+  "bin": {
+    "width": 20.0,
+    "height": 14.0,
+    "depth": 20.0
+  },
+  "items": [
+    {
+      "shape_id": 1,
+      "name": "Item 1",
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0,
+      "width": 1.0,
+      "height": 1.0,
+      "depth": 1.0,
+      "quantity": 1024
+    },
+    {
+      "shape_id": 2,
+      "name": "Item 2",
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0,
+      "width": 2.0,
+      "height": 3.0,
+      "depth": 2.0,
+      "quantity": 1024
+    },
+    {
+      "shape_id": 3,
+      "name": "Item 3",
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0,
+      "width": 1.0,
+      "height": 3.0,
+      "depth": 4.0,
+      "quantity": 300
+    }
+  ]
+}
