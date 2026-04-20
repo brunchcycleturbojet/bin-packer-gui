@@ -2,11 +2,10 @@
 
 ![](/public/prototype.png)
 
-**STATUS**: Very WIP! A lot of unresolved TODOs and comments leftover. But the algo seems to be generally working for smaller cases. The current structure of swapping through datasets is temporary, and the intention is to be able to define items/boxes through the user interface.
-**CURRENT FOCUS**: Cleanup warnings, todos, implement add/edit/remove controls for items/bins.
+**STATUS**: WIP! Rough UI is in place. The algo seems to be generally working for smaller cases but requires more testing and adjustments to be considered properly working.
+**CURRENT FOCUS**: Get the algo working reliably, then move on to styling the presentation with the current feature set.
 
-Lightweight desktop app implementation of the bin packing problem, in 3D.
-Made as a vehicle for learning and messing around with Three.js and Rust!
+Lightweight desktop app implementation of the bin packing problem, in 3D. Made as a vehicle for learning and messing around with Three.js and Rust!
 
 Requirements: <todo: define desktop browser version and types>
 
@@ -18,15 +17,21 @@ To run: ```npm run tauri dev```
 ## Todo list
 
 Performance:
-- [ ] Swappable heuristics, may help results be more reliable
-- [ ] Multi-bin packing 
 - [ ] Render items incrementally (large quantity of items packs faster than it renders!)
 - [ ] Use instanced meshes for identical items, to reduce draw calls on render
 - [ ] Hardware acceleration (Currently CPU only)
 
+Sorting:
+- [ ] Resolve cases of overlapping items in large (1000+) item sets
+- [ ] Swappable heuristics, may help results be more reliable
+- [ ] Multi-bin packing 
+
 Visual/UX:
-- [ ] Basic UX (wait for packing on non-ui thread, control inputs display, add/edit/remove item controls)
-- [ ] Save/load bin states
+- [x] Add/edit/remove item controls
+- [x] Save/load bin states
+- [ ] Report packed/unpacked in table format
+- [ ] Wait for packing on non-ui thread
+- [ ] Control inputs guide
 - [ ] Colour sets for items (e.g based on size, user defined, random)
 - [ ] 3D manipulation in viewer (hide on click, temp removal)
 - [ ] Metric/Imperial conversions
