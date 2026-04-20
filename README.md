@@ -2,8 +2,9 @@
 
 ![](/public/prototype.png)
 
-**STATUS**: WIP! Rough UI is in place. The algo seems to be generally working for smaller cases but requires more testing and adjustments to be considered properly working.
-**CURRENT FOCUS**: Get the algo working reliably, then move on to styling the presentation with the current feature set.
+#### **STATUS**: WIP! Rough UI is in place. The algo seems to be generally working for smaller cases but requires more testing and adjustments to be considered properly working.
+
+#### **CURRENT FOCUS**: Get the algo working reliably, then move on to styling the presentation with the current feature set.
 
 Lightweight desktop app implementation of the bin packing problem, in 3D. Made as a vehicle for learning and messing around with Three.js and Rust!
 
