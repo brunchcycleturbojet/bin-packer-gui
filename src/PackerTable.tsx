@@ -136,14 +136,6 @@ function PackerTable({ bin, items: _items, onItemsPacked, onBinPacked, onFreeSpa
     );
   }
 
-  // Update a specific item
-  function updateItem(shape_id: number, updates: Partial<Item>) {
-    const updatedItems = getPendingItems.map(item =>
-      item.shape_id === shape_id ? { ...item, ...updates } : item
-    );
-    setPendingItems(updatedItems);
-  }
-
   // Delete item
   function renderRemoveButton(shape_id: number) {
     return (
@@ -152,6 +144,12 @@ function PackerTable({ bin, items: _items, onItemsPacked, onBinPacked, onFreeSpa
   }
 
   // Update item(s)
+  function updateItem(shape_id: number, updates: Partial<Item>) {
+    const updatedItems = getPendingItems.map(item =>
+      item.shape_id === shape_id ? { ...item, ...updates } : item
+    );
+    setPendingItems(updatedItems);
+  }
 
   function renderDimensionInput(shape_id: number, width: number, height: number, depth: number) {
     const MIN_VALUE = 0.01;
@@ -189,15 +187,57 @@ function PackerTable({ bin, items: _items, onItemsPacked, onBinPacked, onFreeSpa
     );
   }
 
-  const binDescription = `(${getPendingBin.width}×${getPendingBin.height}×${getPendingBin.depth})`;
+  // Update bin
+  function updateBin(updated: Partial<Bin>) {
+      setPendingBin({ ...getPendingBin, ...updated});
+  }
+  function renderBinDimensionInput(width: number, height: number, depth: number) {
+    const MIN_VALUE = 0.01;
+    const MAX_VALUE = 100.0;
+
+    const renderInput = (dim: number, field: "width" | "height" | "depth") => {
+      return(
+        <input
+            type="number"
+            value={dim}
+            className="input"
+            onChange={(e) => updateBin({ [field]: parseFloat(e.target.value) })}
+            onBlur={(e) => {
+              // Ensure value is within bounds on loss of focus
+              let value = parseFloat(e.target.value);
+              if (isNaN(value)) value = 1.0; // Default to 1 if empty
+              value = Math.max(MIN_VALUE, Math.min(MAX_VALUE, value));
+              updateBin({ [field]: value });
+            }}
+            min={0} // Feels better to scroll to 0, rather than to 0.01 then have to remove the decimal if unwanted
+            max={MAX_VALUE}
+            step={1.0}
+          />
+      );
+    }
+
+    return (
+      <span>
+        <span>BinName </span>
+        {renderInput(width, "width")}
+        <span>×</span>
+        {renderInput(height, "height")}
+        <span>×</span>
+        {renderInput(depth, "depth")}
+      </span>
+    );
+  }
+
   return (
     <>
-      <div>
-        {renderPackButton()}
-        <button onClick={() => loadBinFromFile()}>Load</button>
-        <button onClick={() => saveBinToFile()}>Save</button>
-        {renderAddItemButton()}
-        <h2>Bin: {binDescription}</h2>
+      <div id="tableTitleControls">
+        {renderBinDimensionInput(getPendingBin.width, getPendingBin.height, getPendingBin.depth)}
+        <span>
+          <button onClick={() => loadBinFromFile()}>Load</button>
+          <button onClick={() => saveBinToFile()}>Save as</button>
+          {renderAddItemButton()}
+          {renderPackButton()}
+        </span>
       </div>
       <div className="table-container">
       <table>

@@ -80,3 +80,12 @@ body,html {
     background-color: #0f0f0f69;
   }
 }
+
+#tableTitleControls {
+  display: flex;
+  justify-content: center;
+  gap: 5%;
+  align-items: center;
+  margin: 1% 1%;
+
+}
