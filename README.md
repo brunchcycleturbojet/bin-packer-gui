@@ -18,7 +18,7 @@ To run: ```npm run tauri dev```
 
 Performance:
 - [ ] Render items incrementally (large quantity of items packs faster than it renders!)
-- [ ] Use instanced meshes for identical items, to reduce draw calls on render
+- [x] Use instanced meshes for identical items, to reduce draw calls on render
 - [ ] Hardware acceleration (Currently CPU only)
 
 Sorting:
