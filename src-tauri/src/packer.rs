@@ -166,8 +166,8 @@ impl BinPacker3D {
             // CASE 1: Iterate through all free spaces, to look for a space that fits the item
             for (index, space) in free_spaces.iter().enumerate() {
 
-                if fits(space, &item) {
-                    let (orientation, remainder) = Self::best_orientation(space, &item);
+                if fits_in_any_orientation(space, &item) {
+                    let (orientation, remainder) = Self::best_orientation(space, &item, &prev_item);
                     best_fit = Some((index, orientation, space.clone(), remainder));
                     break;
                 }
@@ -181,15 +181,13 @@ impl BinPacker3D {
 
                 // Now we try to fit again
                 for (index, space) in free_spaces.iter().enumerate() {
-                    if fits(space, &item) {
-                        let (orientation, remainder) = Self::best_orientation(space, &item);
+                    if fits_in_any_orientation(space, &item) {
+                        let (orientation, remainder) = Self::best_orientation(space, &item, &prev_item);
                         best_fit = Some((index, orientation, space.clone(), remainder));
                         break;
                     }
                 }
             }
-
-            prev_item.replace(item.clone());
 
             // Found a space, so place the item and update the free spaces
             if let Some((space_index, orientation, space, remainder)) = best_fit {
@@ -198,6 +196,7 @@ impl BinPacker3D {
                 placed_item.position_xyz = space.position_xyz.clone();
                 placed_item.size = orientation;
 
+                prev_item.replace(placed_item.clone());
                 placed.push(placed_item);
                 free_spaces.remove(space_index);
 
@@ -230,7 +229,7 @@ impl BinPacker3D {
         }
     }
 
-    fn best_orientation(space: &Space, item: &Item) -> ([Dimension; 3], Vec<Space>) {
+    fn best_orientation(space: &Space, item: &Item, prev_item: &Option<Item>) -> ([Dimension; 3], Vec<Space>) {
         let b_dims_xyz = space.size_xyz();
         let mut b_dims = space.size.clone();
         let mut item_dims = item.size.clone();
@@ -241,46 +240,78 @@ impl BinPacker3D {
         item_dims.sort_by(|a, b| a.length.partial_cmp(&b.length).unwrap());
 
         // Build the orientation of the item, side by side
-        // First pass: Choose the shortest side of the box we can stack the item twice on its longest side,
-        // Otherwise, try for an exact fit between the box and item dims
-        let mut side_1_index: Option<usize> = None;
-        for (i, b_dim) in b_dims.iter().enumerate() {
-            if b_dim.length >= item_dims[2].length * 2.0 {
-                side_1_index = Some(i);
-                break;
-            } 
-            else if eq_tol(b_dim.length, item_dims[2].length) {
-                side_1_index = Some(i);
-                break;
-            }
-        }
+        let mut dim_1 = item_dims[2].clone();
+        let mut dim_2 = item_dims[1].clone();
+        let mut dim_3 = item_dims[0].clone();
 
-        // If no suitable side was found, just go for the first fit
-        if side_1_index.is_none() {
+        // If the item to pack is the same size as the previously packed item, prioritise placing it in the same orientation if possible.
+        // This heuristic typically helps stack duplicate items into more regular blocks, which in turn makes remainder spaces more regular,
+        // increasing the chance of good fits on future items. Most importantly, this also avoids an construction artifact where items are
+        // stacked in a herringbone pattern that wastes space.
+        let mut use_previous_orientation= false;
+        let prev_ref = prev_item.as_ref();
+        let check_can_fit_prev = ||{
+            let prev_size = prev_ref.unwrap().size_xyz();
+            let space_size = space.size_xyz();
+
+            space_size[AxisSize::Width] >= prev_size[AxisSize::Width] && 
+            space_size[AxisSize::Height] >= prev_size[AxisSize::Height] && 
+            space_size[AxisSize::Depth] >= prev_size[AxisSize::Depth]
+        };
+        if prev_ref.is_some() && item.is_same_size(prev_ref.unwrap()) && check_can_fit_prev() {
+            let mut prev_size_sorted = prev_ref.unwrap().size.clone();
+            prev_size_sorted.sort_by(|a, b| a.length.partial_cmp(&b.length).unwrap());
+            dim_1.axis = prev_size_sorted[2].axis;
+            dim_2.axis = prev_size_sorted[1].axis;
+            dim_3.axis = prev_size_sorted[0].axis;
+            use_previous_orientation = true;
+        } else {
+
+            // First pass: Choose the shortest side of the box we can stack the item twice on its longest side,
+            // Otherwise, try for an exact fit between the box and item dims
+            let mut side_1_index: Option<usize> = None;
             for (i, b_dim) in b_dims.iter().enumerate() {
-                if b_dim.length >= item_dims[2].length {
+                if b_dim.length >= item_dims[2].length * 2.0 {
+                    side_1_index = Some(i);
+                    break;
+                } 
+                else if eq_tol(b_dim.length, item_dims[2].length) {
                     side_1_index = Some(i);
                     break;
                 }
             }
+
+            // If no suitable side was found, just go for the first fit
+            if side_1_index.is_none() {
+                for (i, b_dim) in b_dims.iter().enumerate() {
+                    if b_dim.length >= item_dims[2].length {
+                        side_1_index = Some(i);
+                        break;
+                    }
+                }
+            }
+
+            // Orient the longest item's side to the chosen box side
+            dim_1.axis = b_dims[side_1_index.unwrap()].axis.clone(); 
+
+            // Determine the orientation for the other two sides, preferring the combination that will have the largest singular volume
+            let (side_2, side_3) = Self::get_side_2_side_3(&item_dims, &b_dims, side_1_index.unwrap());
+            dim_2.axis = b_dims[side_2].axis.clone();
+            dim_3.axis = b_dims[side_3].axis.clone();
         }
 
-        // Orient the longest item's side to the chosen box side
-        let mut dim_1 = item_dims[2].clone();
-        dim_1.axis = b_dims[side_1_index.unwrap()].axis.clone(); 
-
-        // Determine the orientation for the other two sides, preferring the combination that will have the largest singular volume
-        let (side_2, side_3) = Self::get_side_2_side_3(&item_dims, &b_dims, side_1_index.unwrap());
-        let mut dim_2 = item_dims[1].clone();
-        let mut dim_3 = item_dims[0].clone();
-        dim_2.axis = b_dims[side_2].axis.clone();
-        dim_3.axis = b_dims[side_3].axis.clone();
-
-        let orientation = [dim_3, dim_2, dim_1];
-        let orientation_xyz: [f64; 3] = orientation.iter().fold([0.0, 0.0, 0.0], |mut acc, dim| {
-            acc[dim.axis] = dim.length;
-            acc
-        });
+        let (orientation, orientation_xyz) = 
+            if use_previous_orientation { 
+                (prev_ref.unwrap().size, prev_ref.unwrap().size_xyz()) } 
+            else {
+                let ori = [dim_3, dim_2, dim_1];
+                (
+                    ori,
+                    ori.iter().fold([0.0, 0.0, 0.0], |mut acc, dim| {
+                        acc[dim.axis] = dim.length;
+                        acc })
+                )
+            };
 
         // First remaining space: Along the shortest side that we fit the item on. This can be of size 0, in which case it will be filtered out later.
         {
@@ -573,7 +604,7 @@ fn eq_tol(a: f64, b:f64) -> bool {
 }
 
 // Check that an Item can fit into a Space, based on their dimensions
-fn fits(container: &Space, to_fit: &Item) -> bool {
+fn fits_in_any_orientation(container: &Space, to_fit: &Item) -> bool {
     let mut sorted_size_a = container.size_xyz();
     sorted_size_a.sort_by( |a, b|{
         b.partial_cmp(&a).unwrap() }); 
