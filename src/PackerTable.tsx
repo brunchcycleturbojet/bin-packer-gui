@@ -278,7 +278,7 @@ function PackerTable({ bin, items: _items, onItemsPacked, onBinPacked, onFreeSpa
             ))): (
               <>
               <tr>
-                <td colSpan={6}>No items loaded</td>
+                <td colSpan={6}>No items</td>
               </tr>
               </>
             )

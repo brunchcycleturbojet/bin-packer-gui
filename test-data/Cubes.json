@@ -1,20 +1,31 @@
 {
   "bin": {
-    "width": 7,
-    "height": 3,
-    "depth": 6
+    "width": 7.0,
+    "height": 3.0,
+    "depth": 6.0
   },
   "items": [
     {
       "shape_id": 0,
       "name": "cube1",
-      "x": 0,
-      "y": 0,
-      "z": 0,
-      "width": 2,
-      "height": 2,
-      "depth": 2,
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0,
+      "width": 2.0,
+      "height": 2.0,
+      "depth": 2.0,
       "quantity": 9
+    },
+    {
+      "shape_id": 1,
+      "name": "Item 2",
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0,
+      "width": 1.0,
+      "height": 1.0,
+      "depth": 1.0,
+      "quantity": 19
     }
   ]
 }
