@@ -2,9 +2,9 @@
 
 ![](/public/prototype.png)
 
-#### **STATUS**: WIP! Rough UI is in place. The algo seems to be generally working for smaller cases but requires more testing and adjustments to be considered properly working.
+#### **STATUS**: WIP! Rough UI is in place. The algo is generally working and is able to fill a single bin fairly reliably, with good performance.
 
-#### **CURRENT FOCUS**: Get the algo working reliably, then move on to styling the presentation with the current feature set.
+#### **CURRENT FOCUS**: Continue to refine algo logic, and start styling the presentation with the current feature set.
 
 Lightweight desktop app implementation of the bin packing problem, in 3D. Made as a vehicle for learning and messing around with Three.js and Rust!
 
@@ -23,8 +23,8 @@ Performance:
 - [ ] Hardware acceleration (Currently CPU only)
 
 Sorting:
-- [ ] Resolve cases of overlapping items in large (1000+) item sets
-- [ ] Swappable heuristics, may help results be more reliable
+- [ ] Consider genetic approach, with targeted mutations, and re-pack to try and achieve maximum bin usage
+- [ ] Configurable heuristics (e.g minimise bin size, minimise X/Y/Z use, consider stability)
 - [ ] Multi-bin packing 
 
 Visual/UX:
