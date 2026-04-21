@@ -1,8 +1,8 @@
 {
   "bin": {
-    "width": 20.0,
-    "height": 14.0,
-    "depth": 20.0
+    "width": 40.0,
+    "height": 28.0,
+    "depth": 40.0
   },
   "items": [
     {
@@ -14,7 +14,7 @@
       "width": 1.0,
       "height": 1.0,
       "depth": 1.0,
-      "quantity": 1024
+      "quantity": 19680
     },
     {
       "shape_id": 2,
@@ -23,20 +23,31 @@
       "y": 0.0,
       "z": 0.0,
       "width": 2.0,
-      "height": 3.0,
+      "height": 2.0,
       "depth": 2.0,
-      "quantity": 1024
+      "quantity": 900
     },
     {
-      "shape_id": 3,
-      "name": "Item 3",
+      "shape_id": 4,
+      "name": "Item 4",
       "x": 0.0,
       "y": 0.0,
       "z": 0.0,
-      "width": 1.0,
-      "height": 3.0,
+      "width": 4.0,
+      "height": 4.0,
       "depth": 4.0,
-      "quantity": 300
+      "quantity": 200
+    },
+    {
+      "shape_id": 5,
+      "name": "Item 4",
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0,
+      "width": 8.0,
+      "height": 8.0,
+      "depth": 8.0,
+      "quantity": 10
     }
   ]
 }

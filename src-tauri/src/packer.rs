@@ -19,6 +19,9 @@ impl Dimensional for Item {
     fn get_size(&self) -> &[Dimension; 3] {
         &self.size
     }
+    fn get_position(&self) -> &[f64; 3] {
+        &self.position_xyz
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -30,10 +33,14 @@ impl Dimensional for Space {
     fn get_size(&self) -> &[Dimension; 3] {
         &self.size
     }
+    fn get_position(&self) -> &[f64; 3] {
+        &self.position_xyz
+    }
 }
 
 pub trait Dimensional {
     fn get_size(&self) -> &[Dimension; 3];
+    fn get_position(&self) -> &[f64; 3];
 
     fn volume(&self) -> f64 {
         let size = self.get_size();
@@ -156,6 +163,7 @@ impl BinPacker3D {
             // but once we get to smaller items, these channels become too large and lead to wasted space when using
             // a first-fit strategy.
             // To avoid this, we want to defrag the spaces whenever the size/shape of the item we pack changes.
+            // We also defrag when we can't find a fit for the current item.
             prev_item.is_some().then(|| {
                 if !item.is_same_size(prev_item.as_ref().unwrap()) {
                     free_spaces = Self::defrag(&mut free_spaces);
@@ -165,7 +173,6 @@ impl BinPacker3D {
 
             // CASE 1: Iterate through all free spaces, to look for a space that fits the item
             for (index, space) in free_spaces.iter().enumerate() {
-
                 if fits_in_any_orientation(space, &item) {
                     let (orientation, remainder) = Self::best_orientation(space, &item, &prev_item);
                     best_fit = Some((index, orientation, space.clone(), remainder));
@@ -248,17 +255,10 @@ impl BinPacker3D {
         // This heuristic typically helps stack duplicate items into more regular blocks, which in turn makes remainder spaces more regular,
         // increasing the chance of good fits on future items. Most importantly, this also avoids an construction artifact where items are
         // stacked in a herringbone pattern that wastes space.
-        let mut use_previous_orientation= false;
         let prev_ref = prev_item.as_ref();
-        let check_can_fit_prev = ||{
-            let prev_size = prev_ref.unwrap().size_xyz();
-            let space_size = space.size_xyz();
+        let mut use_previous_orientation= false;
 
-            space_size[AxisSize::Width] >= prev_size[AxisSize::Width] && 
-            space_size[AxisSize::Height] >= prev_size[AxisSize::Height] && 
-            space_size[AxisSize::Depth] >= prev_size[AxisSize::Depth]
-        };
-        if prev_ref.is_some() && item.is_same_size(prev_ref.unwrap()) && check_can_fit_prev() {
+        if prev_ref.is_some() && Self::is_eligible_for_previous_orientation(prev_ref.unwrap(), item, space) {
             let mut prev_size_sorted = prev_ref.unwrap().size.clone();
             prev_size_sorted.sort_by(|a, b| a.length.partial_cmp(&b.length).unwrap());
             dim_1.axis = prev_size_sorted[2].axis;
@@ -439,6 +439,60 @@ impl BinPacker3D {
         }
     }
 
+    // Check if the current item is eligible to be placed in the same orientation as the previously packed item.
+    // This heuristic tries to stack duplicate items in that same orientation, to encourage more regular blocks.
+    fn is_eligible_for_previous_orientation(prev: &Item, item: &Item, space: &Space) -> bool {
+
+        // Must be the same item shape
+        if !item.is_same_size(prev) {
+            return false;
+        }
+
+        // Check if space can fit the previous item's size
+        let prev_size = prev.size_xyz();
+        let space_size = space.size_xyz();
+        if !(space_size[AxisSize::Width] >= prev_size[AxisSize::Width] && 
+           space_size[AxisSize::Height] >= prev_size[AxisSize::Height] && 
+           space_size[AxisSize::Depth] >= prev_size[AxisSize::Depth]) {
+            return false;
+        }
+        
+        // Check if space is adjacent to previous item and overlaps with its face
+        for axis in [AxisSize::Width, AxisSize::Height, AxisSize::Depth] {                
+            if is_touching(prev, space, axis) {
+                let other_axes: Vec<AxisSize> = [AxisSize::Width, AxisSize::Height, AxisSize::Depth]
+                    .into_iter()
+                    .filter(|&a| a != axis)
+                    .collect();
+                
+                let prev_pos = prev.position_xyz;
+                let prev_size = prev.size_xyz();
+                let space_pos = space.position_xyz;
+                let space_size = space.size_xyz();
+
+                let space_pos_a = space_pos[other_axes[0]];
+                let space_pos_b = space_pos[other_axes[1]];
+                let space_max_a = space_pos_a + space_size[other_axes[0]];
+                let space_max_b = space_pos_b + space_size[other_axes[1]];
+                
+                let prev_pos_a = prev_pos[other_axes[0]];
+                let prev_pos_b = prev_pos[other_axes[1]];
+                let prev_max_a = prev_pos_a + prev_size[other_axes[0]];
+                let prev_max_b = prev_pos_b + prev_size[other_axes[1]];
+                
+                // Check if the space overlaps with prev item's face
+                let overlaps = space_pos_a <= prev_max_a && space_max_a >= prev_pos_a &&
+                            space_pos_b <= prev_max_b && space_max_b >= prev_pos_b;
+                
+                if overlaps {
+                    return true;
+                }
+            }
+        }
+        
+        false
+    }
+
     // Defragments free spaces by merging adjacent blocks that share a complete face
     // Returns the new defragmented spaces, sorted from smallest volume to largest
     fn defrag(free_spaces: &Vec<Space>) -> Vec<Space> {
@@ -461,11 +515,6 @@ impl BinPacker3D {
                     let space_b = &new_spaces[j];
 
                     for axis in [AxisSize::Width, AxisSize::Height, AxisSize::Depth] {
-                        let a_min = space_a.position_xyz[axis];
-                        let a_max = a_min + space_a.size_xyz()[axis];
-                        let b_min = space_b.position_xyz[axis];
-                        let b_max = b_min + space_b.size_xyz()[axis];
-
                         let other_axes: Vec<AxisSize> = [AxisSize::Width, AxisSize::Height, AxisSize::Depth]
                             .into_iter()
                             .filter(|&a| a != axis) 
@@ -474,15 +523,10 @@ impl BinPacker3D {
                         let face_dim_a2 = space_a.size_xyz()[other_axes[1]];
                         let face_dim_b1 = space_b.size_xyz()[other_axes[0]];
                         let face_dim_b2 = space_b.size_xyz()[other_axes[1]];
-
-                        let is_aligned_on_candidate_axis = eq_tol(a_max, b_min) || eq_tol(b_max, a_min);
-                        let is_aligned_on_other_axes = 
-                            eq_tol(space_a.position_xyz[other_axes[0]], space_b.position_xyz[other_axes[0]]) 
-                            && eq_tol(space_a.position_xyz[other_axes[1]], space_b.position_xyz[other_axes[1]]);
                         let has_matching_face_dims = eq_tol(face_dim_a1, face_dim_b1) && eq_tol(face_dim_a2, face_dim_b2);
 
                         // CASE 1: Blocks are positioned along a same axis and share a face exactly can be merged.
-                        if is_aligned_on_candidate_axis && is_aligned_on_other_axes && has_matching_face_dims
+                        if has_axis_aligned_positions(space_a, space_b, axis) && has_matching_face_dims
                         {
                             let mut position_xyz = space_a.position_xyz.clone();
                             position_xyz[axis] = space_a.position_xyz[axis].min(space_b.position_xyz[axis]);
@@ -593,6 +637,31 @@ impl BinPacker3D {
         new_spaces
     }
 
+}
+
+// Check if two blocks are next to each other, along a specific axis
+fn is_touching(block_a: &dyn Dimensional, block_b: &dyn Dimensional, axis: AxisSize) -> bool {
+    let a_min = block_a.get_position()[axis];
+    let a_max = a_min + block_a.size_xyz()[axis];
+    let b_min = block_b.get_position()[axis];
+    let b_max = b_min + block_b.size_xyz()[axis];
+
+    eq_tol(a_max, b_min) || eq_tol(b_max, a_min)
+}
+
+// Check if the position of two blocks are along one axis
+fn has_axis_aligned_positions(block_a: &dyn Dimensional, block_b: &dyn Dimensional, axis: AxisSize) -> bool {
+    let other_axes: Vec<AxisSize> = [AxisSize::Width, AxisSize::Height, AxisSize::Depth]
+        .into_iter()
+        .filter(|&a| a != axis) 
+        .collect();
+
+    let is_adjacent_on_candidate_axis = is_touching(block_a, block_b, axis);
+    let same_position_on_other_axes = 
+        eq_tol(block_a.get_position()[other_axes[0]], block_b.get_position()[other_axes[0]]) 
+        && eq_tol(block_a.get_position()[other_axes[1]], block_b.get_position()[other_axes[1]]);
+
+    return is_adjacent_on_candidate_axis && same_position_on_other_axes;
 }
 
 // Compare f64 with an acceptable tolerance for packing purposes.
