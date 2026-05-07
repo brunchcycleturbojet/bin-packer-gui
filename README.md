@@ -2,7 +2,7 @@
 
 ![](/public/prototype.png)
 
-#### **STATUS**: WIP! Rough UI is in place. The algo is generally working and is able to fill a single bin fairly reliably, with good performance.
+#### **STATUS**: WIP! Rough UI is in place. The algo is working and often finds optimal or close to optimal solutions, with good performance.
 
 #### **CURRENT FOCUS**: Continue to refine algo logic, and start styling the presentation with the current feature set.
 
@@ -18,7 +18,7 @@ To run: ```npm run tauri dev```
 ## Todo list
 
 Performance:
-- [ ] Render items incrementally (large quantity of items packs faster than it renders!)
+- [ ] Render items incrementally (larger quantities of items packs faster than it renders!)
 - [x] Use instanced meshes for identical items, to reduce draw calls on render
 - [ ] Hardware acceleration (Currently CPU only)
 
