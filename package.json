@@ -18,7 +18,8 @@
     "r3f-perf": "^7.2.3",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "three": "^0.183.2"
+    "three": "^0.183.2",
+    "zustand": "^5.0.13"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",

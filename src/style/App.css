@@ -89,3 +89,53 @@ body,html {
   margin: 1% 1%;
 
 }
+
+.tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid #ccc;
+  background-color: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  .tabs {
+    background-color: #1a1a1a;
+    border-bottom-color: #444;
+  }
+}
+
+.tab-button {
+  padding: 12px 20px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+  border-bottom: 2px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.tab-button:hover {
+  color: #333;
+}
+
+.tab-button.active {
+  color: #0f0f0f;
+  border-bottom-color: #0f0f0f;
+}
+
+@media (prefers-color-scheme: dark) {
+  .tab-button {
+    color: #999;
+  }
+
+  .tab-button:hover {
+    color: #ccc;
+  }
+
+  .tab-button.active {
+    color: #f6f6f6;
+    border-bottom-color: #f6f6f6;
+  }
+}

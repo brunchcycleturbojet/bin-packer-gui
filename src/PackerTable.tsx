@@ -1,30 +1,21 @@
 import "./style/App.css";
-import { Bin, Item, FreeSpace, LoadOutput, PackerOutput } from "./BinData";
-import { useState } from "react";
+import { Bin, Item, FreeSpace, LoadOutput, PackerOutput } from "./binData";
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
+import { useAppStore } from "./store";
 
-interface PackerTableProps {
-  bin: Bin;
-  items: Item[];
-  onItemsPacked?: (items: Item[]) => void;
-  onBinPacked?: (bin: Bin) => void;
-  onFreeSpacesPacked?: (spaces: FreeSpace[]) => void;
-}
-
-function PackerTable({ bin, items: _items, onItemsPacked, onBinPacked, onFreeSpacesPacked }: PackerTableProps) {
-  const [getPendingBin, setPendingBin] = useState<Bin>(bin);
-  const [getPendingItems, setPendingItems] = useState<Item[]>([]);
+function PackerTable() {
+  const { bin, pendingBin, pendingItems, updateBin, updateItems, updateFreeSpaces, updatePendingBin, updatePendingItems } = useAppStore();
 
   // Run packing algo
   async function pack_bin() {
     const payload = {
       bin: {
-        width: getPendingBin.width,
-        height: getPendingBin.height,
-        depth: getPendingBin.depth,
+        width: pendingBin.width,
+        height: pendingBin.height,
+        depth: pendingBin.depth,
       },
-      items: getPendingItems,
+      items: pendingItems,
     };
 
     const json = JSON.stringify(payload);
@@ -38,9 +29,9 @@ function PackerTable({ bin, items: _items, onItemsPacked, onBinPacked, onFreeSpa
       const newItems: Item[] = parsedJSON.items;
       const newFreeSpaces: FreeSpace[] = parsedJSON.free_spaces;
 
-      onBinPacked?.(newBin);
-      onItemsPacked?.(newItems);
-      onFreeSpacesPacked?.(newFreeSpaces);
+      updateBin(newBin);
+      updateItems(newItems);
+      updateFreeSpaces(newFreeSpaces);
     }
   }
 
@@ -68,12 +59,12 @@ function PackerTable({ bin, items: _items, onItemsPacked, onBinPacked, onFreeSpa
       }
 
       const parsedJSON: LoadOutput = JSON.parse(result);
-      setPendingBin(parsedJSON.pack_input.bin);
-      setPendingItems(parsedJSON.pack_input.items); 
+      updatePendingBin(parsedJSON.pack_input.bin);
+      updatePendingItems(parsedJSON.pack_input.items); 
 
-      onBinPacked?.(parsedJSON.pack_result.bin);
-      onItemsPacked?.(parsedJSON.pack_result.items);
-      onFreeSpacesPacked?.(parsedJSON.pack_result.free_spaces);
+      updateBin(parsedJSON.pack_result.bin);
+      updateItems(parsedJSON.pack_result.items);
+      updateFreeSpaces(parsedJSON.pack_result.free_spaces);
 
     } catch (error) {
       console.error("Error loading file:", error);
@@ -96,7 +87,7 @@ function PackerTable({ bin, items: _items, onItemsPacked, onBinPacked, onFreeSpa
           height: bin.height,
           depth: bin.depth,
         },
-        items: getPendingItems,
+        items: pendingItems,
       };
 
       const json = JSON.stringify(payload);
@@ -116,8 +107,8 @@ function PackerTable({ bin, items: _items, onItemsPacked, onBinPacked, onFreeSpa
   // Add new item, with default parameters
   function addItem() {
     const newItem: Item = {
-      shape_id: Math.max(...getPendingItems.map(i => i.shape_id), 0) + 1,
-      name: `Item ${getPendingItems.length + 1}`,
+      shape_id: Math.max(...pendingItems.map(i => i.shape_id), 0) + 1,
+      name: `Item ${pendingItems.length + 1}`,
       x: 0,
       y: 0,
       z: 0,
@@ -127,7 +118,7 @@ function PackerTable({ bin, items: _items, onItemsPacked, onBinPacked, onFreeSpa
       quantity: 1,
     };
 
-    setPendingItems([...getPendingItems, newItem]);
+    updatePendingItems([...pendingItems, newItem]);
   }
   
   function renderAddItemButton() {
@@ -139,16 +130,16 @@ function PackerTable({ bin, items: _items, onItemsPacked, onBinPacked, onFreeSpa
   // Delete item
   function renderRemoveButton(shape_id: number) {
     return (
-      <button onClick={() => setPendingItems(getPendingItems.filter(item => item.shape_id !== shape_id))}>Remove</button>
+      <button onClick={() => updatePendingItems(pendingItems.filter(item => item.shape_id !== shape_id))}>Remove</button>
     );
   }
 
   // Update item(s)
   function updateItem(shape_id: number, updates: Partial<Item>) {
-    const updatedItems = getPendingItems.map(item =>
+    const updatedItems = pendingItems.map(item =>
       item.shape_id === shape_id ? { ...item, ...updates } : item
     );
-    setPendingItems(updatedItems);
+    updatePendingItems(updatedItems);
   }
 
   function renderDimensionInput(shape_id: number, width: number, height: number, depth: number) {
@@ -188,8 +179,8 @@ function PackerTable({ bin, items: _items, onItemsPacked, onBinPacked, onFreeSpa
   }
 
   // Update bin
-  function updateBin(updated: Partial<Bin>) {
-      setPendingBin({ ...getPendingBin, ...updated});
+  function updatePendingBinLocal(updated: Partial<Bin>) {
+      updatePendingBin({ ...pendingBin, ...updated});
   }
   function renderBinDimensionInput(width: number, height: number, depth: number) {
     const MIN_VALUE = 0.01;
@@ -201,13 +192,13 @@ function PackerTable({ bin, items: _items, onItemsPacked, onBinPacked, onFreeSpa
             type="number"
             value={dim}
             className="input"
-            onChange={(e) => updateBin({ [field]: parseFloat(e.target.value) })}
+            onChange={(e) => updatePendingBinLocal({ [field]: parseFloat(e.target.value) })}
             onBlur={(e) => {
               // Ensure value is within bounds on loss of focus
               let value = parseFloat(e.target.value);
               if (isNaN(value)) value = 1.0; // Default to 1 if empty
               value = Math.max(MIN_VALUE, Math.min(MAX_VALUE, value));
-              updateBin({ [field]: value });
+              updatePendingBinLocal({ [field]: value });
             }}
             min={0} // Feels better to scroll to 0, rather than to 0.01 then have to remove the decimal if unwanted
             max={MAX_VALUE}
@@ -231,7 +222,7 @@ function PackerTable({ bin, items: _items, onItemsPacked, onBinPacked, onFreeSpa
   return (
     <>
       <div id="tableTitleControls">
-        {renderBinDimensionInput(getPendingBin.width, getPendingBin.height, getPendingBin.depth)}
+        {renderBinDimensionInput(pendingBin.width, pendingBin.height, pendingBin.depth)}
         <span>
           <button onClick={() => loadBinFromFile()}>Load</button>
           <button onClick={() => saveBinToFile()}>Save as</button>
@@ -250,8 +241,8 @@ function PackerTable({ bin, items: _items, onItemsPacked, onBinPacked, onFreeSpa
             <th>Qty</th>
             <th>{/* Column for remove item button */}</th>
           </tr>
-          {getPendingItems && getPendingItems.length > 0 ? (
-            getPendingItems.map((item) => (
+          {pendingItems && pendingItems.length > 0 ? (
+            pendingItems.map((item) => (
               <tr key={item.shape_id}>
                 <td><input type="checkbox" name={`item_${item.shape_id}`} value={`${item.shape_id}`} /></td>
                 <td>TODO{/* Colour display */}</td>

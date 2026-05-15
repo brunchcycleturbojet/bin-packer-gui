@@ -5,17 +5,13 @@ import { Grid, PerspectiveCamera, Text } from '@react-three/drei'
 import { EdgesGeometry, LineSegments, LineBasicMaterial, AxesHelper, BoxGeometry, Color, SRGBColorSpace, DoubleSide, InstancedMesh, Matrix4, MeshPhongMaterial, MeshStandardMaterial } from "three";
 import { Perf } from 'r3f-perf';
 
-import { Bin, Item, FreeSpace } from "../BinData";
+import { Bin, Item, FreeSpace } from "../binData";
 import { CameraControls } from "./CameraControls";
 import { DebugButton } from "../DebugButton";
+import { useAppStore } from "../store";
 
-interface Bin3DViewProps {
-  bin: Bin;
-  items: Item[];
-  freeSpaces: FreeSpace[];
-}
-
-function Bin3DView({ bin, items, freeSpaces }: Bin3DViewProps) {
+function Bin3DView() {
+  const { bin, items, freeSpaces } = useAppStore();
   const [showDebug, setShowDebug] = useState(false);
   const [showFreeSpaces, setShowFreeSpaces] = useState(false);
 
