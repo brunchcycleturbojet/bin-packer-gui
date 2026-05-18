@@ -2,7 +2,7 @@
 
 ![](/public/prototype.png)
 
-#### **STATUS**: WIP! Rough UI is in place. The algo is working and often finds optimal or close to optimal solutions, with good performance.
+#### **STATUS**: Barebones UI. The algo is working and often finds optimal or close to optimal solutions, with good performance.
 
 #### **CURRENT FOCUS**: Continue to refine algo logic, and start styling the presentation with the current feature set.
 
@@ -19,6 +19,7 @@ To run: ```npm run tauri dev```
 
 Performance:
 - [ ] Render items incrementally (larger quantities of items packs faster than it renders!)
+- [ ] Multi-threading: the algo divides the box into distinct spaces, which could be processed concurrently
 - [x] Use instanced meshes for identical items, to reduce draw calls on render
 - [ ] Hardware acceleration (Currently CPU only)
 
@@ -28,10 +29,8 @@ Sorting:
 - [ ] Multi-bin packing 
 
 Visual/UX:
-- [x] Add/edit/remove item controls
-- [x] Save/load bin states
-- [ ] Report packed/unpacked in table format
-- [ ] Save pack results to temp file 
+- [ ] Instanced results report in tabs
+- [ ] Export/Import results to CSV 
 - [ ] Wait for packing on non-ui thread
 - [ ] Control inputs guide
 - [ ] Colour sets for items (e.g based on size, user defined, random)

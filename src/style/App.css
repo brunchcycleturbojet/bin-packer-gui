@@ -36,14 +36,18 @@ body,html {
   min-height: 0;
 }
 
-.table-container {
-  flex: 0 0 25%;
+#interfaceContainer {
+  flex: 0 0 30%;
   min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.table-container {
   overflow-y: auto;
   border-top: 1px solid #ccc;
   padding: 10px;
-  display: flex;
-  flex-direction: column;
 
   table {
     width: 100%;

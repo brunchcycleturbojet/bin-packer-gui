@@ -23,7 +23,7 @@ export function DebugButton({ showPerf, onToggle, showFreeSpaces = false, onTogg
           className={`debugButton ${showFreeSpaces ? 'debugButton--active' : 'debugButton--inactive'}`}
           style={{ right: '110px' }}
         >
-          Free Spaces
+          Toggle Free Spaces
         </button>
       )}
     </>

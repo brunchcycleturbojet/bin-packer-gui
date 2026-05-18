@@ -1,95 +1,136 @@
 use serde::{Deserialize, Serialize};
-use crate::{packer::{AxisSize, Bin, BinPacker3D, Dimension, Dimensional, Item, PackResult}};
+use crate::{packer::{AxisSize, Bin, Dimension, Dimensional, Item, PackResult}};
 
-#[derive(Serialize)]
-pub struct ItemOutput {
-    shape_id: i32,
-    name: String,
-    x: f64,
-    y: f64,
-    z: f64,
-    width: f64,
-    height: f64,
-    depth: f64,
-}
-
-#[derive(Serialize)]
-pub struct SpaceOutput {
-    x: f64,
-    y: f64,
-    z: f64,
-    width: f64,
-    height: f64,
-    depth: f64,
-}
-
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct ItemInput {
     shape_id: i32,
     name: String,
-    #[serde(default)]
+    width: f64,
+    height: f64,
+    depth: f64,
+    quantity: i32,
+}
+
+#[derive(Serialize)]
+struct ItemOutput {
+    shape_id: i32,
+    name: String,
     x: f64,
-    #[serde(default)]
     y: f64,
-    #[serde(default)]
     z: f64,
     width: f64,
     height: f64,
     depth: f64,
-    #[serde(default = "default_quantity")]
-    quantity: i32,
-}
-
-// TODO: Refactor test data to use quantity, and remove this default value
-fn default_quantity() -> i32 {
-    1
 }
 
 #[derive(Serialize)]
-pub struct PackingDataOutput {
-    pub bin: Bin,
-    pub items: Vec<ItemOutput>,
-    pub unpacked_items: Vec<ItemOutput>,
-    pub free_spaces: Vec<SpaceOutput>,
+struct SpaceOutput {
+    x: f64,
+    y: f64,
+    z: f64,
+    width: f64,
+    height: f64,
+    depth: f64,
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct PackingDataInput {
+struct PackingDataInput {
     bin: Bin,
     items: Vec<ItemInput>,
 }
 
 #[derive(Serialize)]
-pub struct LoadOutput {
-    pub pack_input: PackingDataInput,
-    pub pack_result: PackingDataOutput,
+struct PackingDataOutput {
+    pub bin: Bin,
+    pub item_pos: Vec<ItemOutput>,
+    pub free_space_pos: Vec<SpaceOutput>,
+
+    pub placed_items: Vec<ItemInput>,
+    pub unpacked_items: Vec<ItemInput>,
 }
 
-pub fn parse_bin_json(json: &str) -> Result<(Bin, Vec<Item>), serde_json::Error> {
+#[derive(Serialize)]
+struct LoadOutput {
+    pack_input: PackingDataInput,
+    pack_result: PackingDataOutput,
+}
+
+pub enum ResponseType {
+    PackResult,
+    LoadResult,
+}
+
+// Convert packing results into an appropriate JSON response
+pub fn bin_to_json_response(result: PackResult, inputs: Vec<ItemInput>, response: ResponseType) -> Result<String, serde_json::Error> {
+    match response {
+        ResponseType::PackResult => serde_json::to_string(&process_results_to_output(result, inputs)),
+        ResponseType::LoadResult => {
+            let output = LoadOutput {
+                pack_input: PackingDataInput {
+                    bin: result.bin.clone(),
+                    items: inputs.clone(),
+                },
+                pack_result: process_results_to_output(result, inputs),
+            };
+            serde_json::to_string(&output)
+        }
+    }
+}
+
+// Convert JSON pack request into bin and items data structures for packing, and the item inputs.
+pub fn json_to_bin(json: &str) -> Result<(Bin, Vec<Item>, Vec<ItemInput>), serde_json::Error> {
     let data: PackingDataInput = serde_json::from_str(json)?;
 
     let bin = data.bin;
-    let items = expand_items(data.items);
-
-    Ok((bin, items))
+    let items = expand_items(data.items.clone());
+    let item_inputs = data.items;
+    Ok((bin, items, item_inputs))
 }
 
-fn convert_to_packing_data(result: PackResult) -> PackingDataOutput {
-    let unpacked_items: Vec<ItemOutput> = result.unplaced.iter().map(|item| {
-        let size = item.size_xyz();
-        ItemOutput {
-            shape_id: item.shape_id,
-            name: item.name.clone(),
-            x: item.position_xyz[0],
-            y: item.position_xyz[1],
-            z: item.position_xyz[2],
-            width: size[0],
-            height: size[1],
-            depth: size[2],
-        }
-    }).collect();
+// Write packing algo inputs to file
+pub fn bin_to_file(bin: &Bin, items: Vec<Item>, file_name: &str) -> std::io::Result<()> {
+    let packing_data = PackingDataInput {
+        bin: bin.clone(),
+        items: group_items(items),
+    };
 
-    let placed_items: Vec<ItemOutput> = result.placed.iter().map(|item| {
+    let json_data = serde_json::to_string_pretty(&packing_data)?; // Use pretty for human readability in saved files
+    std::fs::write(file_name, json_data)
+}
+
+// Read packing algo inputs from file into bin and items data structures, and the item inputs.
+pub fn file_to_bin(file_path: &str) -> Result<(Bin, Vec<Item>, Vec<ItemInput>), std::io::Error> {
+    let input_json = match std::fs::read_to_string(file_path) {
+        Err(e) => {
+            eprintln!("Error reading file: {}", e);
+            return Err(e);
+        },
+        Ok(content) => content,
+    };
+
+    json_to_bin(&input_json).map_err(|e| {
+        eprintln!("Error parsing JSON from file: {}", e);
+        std::io::Error::new(std::io::ErrorKind::InvalidData, "Failed to parse JSON")
+    })
+}
+
+
+// Helper functions --- 
+
+fn process_results_to_output(result: PackResult, inputs: Vec<ItemInput>) -> PackingDataOutput {
+    // Restore original dimensions for packed items, since the packer logic may have rotated them
+    let mut placed_items: Vec<ItemInput> = group_items(result.placed.clone());
+    placed_items.iter_mut().for_each(|item| {
+        if let Some(input) = inputs.iter().find(|input| input.shape_id == item.shape_id) {
+            item.width = input.width;
+            item.height = input.height;
+            item.depth = input.depth;
+        }
+    });
+
+    let unpacked_items: Vec<ItemInput> = group_items(result.unplaced);
+
+    let placed_item_positions: Vec<ItemOutput> = result.placed.iter().map(|item| {
         let size = item.size_xyz();
         ItemOutput {
             shape_id: item.shape_id,
@@ -117,68 +158,15 @@ fn convert_to_packing_data(result: PackResult) -> PackingDataOutput {
 
     PackingDataOutput {
         bin: result.bin,
-        items: placed_items,
+        item_pos: placed_item_positions,
+        free_space_pos: free_spaces_output,
+        placed_items: placed_items,
         unpacked_items: unpacked_items,
-        free_spaces: free_spaces_output,
     }
 }
 
-pub fn convert_bin_json(result: PackResult) -> Result<String, serde_json::Error> {
-    serde_json::to_string(&convert_to_packing_data(result))
-}
-
-pub fn write_bin_to_file(bin: &Bin, items: Vec<Item>, file_name: &str) -> std::io::Result<()> {
-    let packing_data = PackingDataInput {
-        bin: bin.clone(),
-        items: group_items(items),
-    };
-
-    let json_data = serde_json::to_string_pretty(&packing_data)?; // Use pretty for human readability in saved files
-    std::fs::write(file_name, json_data)
-}
-
-pub fn load_bin_from_file(file_path: &str) -> std::io::Result<String> {
-    let input_json = std::fs::read_to_string(file_path)?;
-    
-    // Parse the input JSON and store it for output later
-    let pack_input: PackingDataInput = match serde_json::from_str(&input_json) {
-        Ok(data) => data,
-        Err(e) => {
-            eprintln!("Error parsing JSON from file: {}", e);
-            return Ok(String::new());
-        }
-    };
-    let (bin, items) = match parse_bin_json(&input_json) {
-        Ok((bin, items)) => (bin, items),
-        Err(e) => {
-            eprintln!("Error parsing JSON from file: {}", e);
-            return Ok(String::new());
-        }
-    };
-
-    // Do packing, format the result
-    let result = BinPacker3D::pack(bin, items);
-    println!("--- Loaded bin and packed ---");
-    println!("Container: {}x{}x{}", result.bin.width, result.bin.height, result.bin.depth);
-    println!("Time taken to pack: {} ms", result.time_to_pack);
-    println!("Bin usage percentage: {:.2}%", result.bin_usage_percentage);
-    println!("Packed {} items, {} items could not be packed", result.placed.len(), result.unplaced.len());
-    let pack_output = convert_to_packing_data(result);
-
-    let output = LoadOutput {
-        pack_input,
-        pack_result: pack_output,
-    };
-    match serde_json::to_string(&output) {
-        Ok(json) => Ok(json),
-        Err(e) => {
-            eprintln!("Error serializing output: {}", e);
-            Ok(String::new())
-        }
-    }
-}
-
-// Processes input items into a vector of items, with duplicates based on their specified quantity. This format is needed for the packing algo.
+// Processes input items into a vector of items, with duplicates based on their specified quantity. 
+// This format is better for the packing algo so it can rotate and move items independently.
 fn expand_items(input_items: Vec<ItemInput>) -> Vec<Item> {
     let mut items = Vec::new();
     for input_item in input_items {
@@ -186,7 +174,7 @@ fn expand_items(input_items: Vec<ItemInput>) -> Vec<Item> {
             items.push(Item {
                 shape_id: input_item.shape_id,
                 name: input_item.name.clone(),
-                position_xyz: [input_item.x, input_item.y, input_item.z],
+                position_xyz: [0.0, 0.0, 0.0],
                 size: [
                     Dimension { length: input_item.width, axis: AxisSize::Width },
                     Dimension { length: input_item.height, axis: AxisSize::Height },
@@ -198,7 +186,10 @@ fn expand_items(input_items: Vec<ItemInput>) -> Vec<Item> {
     items
 }
 
-pub fn group_items(items: Vec<Item>) -> Vec<ItemInput> {
+// Processes items into a vector of ItemInput, grouping same-shape items together.
+// This format is better for UI display. Note that grouped items will lose their
+// positions and dimensional 'rotations'.
+fn group_items(items: Vec<Item>) -> Vec<ItemInput> {
     use indexmap::IndexMap;
 
     let mut items_map: IndexMap<i32, Vec<Item>> = IndexMap::new();
@@ -213,9 +204,6 @@ pub fn group_items(items: Vec<Item>) -> Vec<ItemInput> {
         ItemInput {
             shape_id: id,
             name: item.name.clone(),
-            x: item.position_xyz[0],
-            y: item.position_xyz[1],
-            z: item.position_xyz[2],
             width: size[0],
             height: size[1],
             depth: size[2],

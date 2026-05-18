@@ -1,0 +1,39 @@
+.table-container {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+.bin-info {
+  width: 25%;
+  height: 100%;
+
+  display: flex;
+  flex-direction: column;;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: #474747;
+}
+
+.item-results {
+  width: 75%;
+}
+
+.items-section {
+  margin-top: 20px;
+}
+
+.items-section:first-of-type {
+  margin-top: 0;
+}
+
+.section-title {
+  margin-bottom: 10px;
+}
+
+.centered-cell {
+  text-align: center;
+}
+
+

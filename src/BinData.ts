@@ -19,7 +19,7 @@ export type Item = {
   width: number,
   height: number,
   depth: number,
-  quantity: number,  // Number of items of this size to pack (default: 1)
+  quantity: number, 
 }
 
 export type FreeSpace = {
@@ -49,8 +49,10 @@ export type PackerOutput = {
     height: number,
     depth: number,
   },
-  items: Item[],
-  free_spaces: FreeSpace[],
+  item_pos: Item[],
+  free_space_pos: FreeSpace[],
+  
+  placed_items?: Item[],
   unpacked_items?: Item[],
 }
 

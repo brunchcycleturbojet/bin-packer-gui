@@ -29,11 +29,14 @@ function App() {
         </button>
       </div>
 
+      <div id="interfaceContainer">
       {activeTab === TabState.Table ? (
         <PackerTable />
       ) : (
         <PackerResult />
       )}
+      </div>
+
     </main>
   );
 }

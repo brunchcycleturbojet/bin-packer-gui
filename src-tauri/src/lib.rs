@@ -1,23 +1,9 @@
 use crate::packer::{ BinPacker3D };
-
-use crate::packer_io::{convert_bin_json, parse_bin_json, write_bin_to_file};
+use crate::packer_io::{ResponseType, bin_to_file, bin_to_json_response, file_to_bin, json_to_bin};
 mod packer_io;
-
 mod packer;
 
-#[tauri::command]
-fn pack_bin(json: &str) -> String {
-
-    // Parse the input JSON
-    let (bin, items) = match parse_bin_json(json) {
-        Ok((bin, items)) => (bin, items),
-        Err(e) => {
-            eprintln!("Error parsing JSON: {}", e);
-            return String::new(); // Empty JSON response on error
-        }
-    };
-
-    // Do packing
+fn run_packer(bin: packer::Bin, items: Vec<packer::Item>) -> packer::PackResult {
     let result = BinPacker3D::pack(bin, items);
 
     println!("--- Packing Result ---");
@@ -26,8 +12,26 @@ fn pack_bin(json: &str) -> String {
     println!("Bin usage percentage: {:.2}%", result.bin_usage_percentage);
     println!("Packed {} items, {} items could not be packed", result.placed.len(), result.unplaced.len());
 
+    result
+}
+
+#[tauri::command]
+fn pack_bin(json: &str) -> String {
+
+    // Parse the input JSON
+    let (bin, items, inputs) = match json_to_bin(json) {
+        Ok((bin, items, inputs)) => (bin, items, inputs),
+        Err(e) => {
+            eprintln!("Error parsing JSON: {}", e);
+            return String::new(); // Empty JSON response on error
+        }
+    };
+
+    // Do packing
+    let result = run_packer(bin, items);
+
     // Generate response JSON
-    let result_json = match convert_bin_json(result) {
+    let result_json = match bin_to_json_response(result, inputs, ResponseType::PackResult) {
         Ok(json) => json,
         Err(e) => {
             eprintln!("Error generating JSON: {}", e);
@@ -35,22 +39,22 @@ fn pack_bin(json: &str) -> String {
         }
     };
 
-    return result_json;
+    result_json
 }
 
 #[tauri::command]
 fn save_bin_and_items(json: &str, file_path: &str) -> String {
 
     // Parse the input JSON
-    let (bin, items) = match parse_bin_json(json) {
-        Ok((bin, items)) => (bin, items),
+    let (bin, items, _inputs) = match json_to_bin(json) {
+        Ok((bin, items, inputs)) => (bin, items, inputs),
         Err(e) => {
             eprintln!("Error parsing JSON: {}", e);
             return String::new(); // Empty response on error
         }
     };
 
-    match write_bin_to_file(&bin, items, file_path) {
+    match bin_to_file(&bin, items, file_path) {
         Ok(_) => file_path.to_string(),
         Err(e) => {
             eprintln!("Error writing to file: {}", e);
@@ -61,15 +65,29 @@ fn save_bin_and_items(json: &str, file_path: &str) -> String {
 
 #[tauri::command]
 fn load_bin_and_items(file_path: &str) -> String {
-    match crate::packer_io::load_bin_from_file(file_path) {
-        Ok(result) => {
-            result
-        },
+
+    // Parse the input JSON
+    let (bin, items, inputs) = match file_to_bin(file_path) {
+        Ok((bin, items, inputs)) => (bin, items, inputs),
         Err(e) => {
             eprintln!("Error loading file: {}", e);
-            String::new() // Empty response on error
+            return String::new(); // Empty JSON response on error
         }
-    }
+    };
+    
+    // Do packing
+    let result = run_packer(bin, items);
+
+    // Generate response JSON
+    let result_json = match bin_to_json_response(result, inputs, ResponseType::LoadResult) {
+        Ok(json) => json,
+        Err(e) => {
+            eprintln!("Error generating JSON: {}", e);
+            return String::new(); // Empty JSON response on error
+        }
+    };
+
+    result_json
 }
 
 #[cfg(test)]

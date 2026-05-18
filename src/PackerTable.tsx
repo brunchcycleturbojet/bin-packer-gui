@@ -2,10 +2,22 @@ import "./style/App.css";
 import { Bin, Item, FreeSpace, LoadOutput, PackerOutput } from "./binData";
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
-import { useAppStore } from "./store";
+import { useAppStore, TabState } from "./store";
 
 function PackerTable() {
-  const { bin, pendingBin, pendingItems, updateBin, updateItems, updateFreeSpaces, updatePendingBin, updatePendingItems } = useAppStore();
+  const { 
+    bin, 
+    pendingBin, 
+    pendingItems, 
+    updateBin, 
+    updateItems, 
+    updateFreeSpaces, 
+    updatePendingBin, 
+    updatePendingItems,
+    updateLastPackedItems,
+    updateLastUnpackedItems,
+    setActiveTab,
+  } = useAppStore();
 
   // Run packing algo
   async function pack_bin() {
@@ -26,12 +38,19 @@ function PackerTable() {
     } else {
       const parsedJSON: PackerOutput = JSON.parse(result);
       const newBin: Bin = parsedJSON.bin;
-      const newItems: Item[] = parsedJSON.items;
-      const newFreeSpaces: FreeSpace[] = parsedJSON.free_spaces;
+      const newItems: Item[] = parsedJSON.item_pos;
+      const newFreeSpaces: FreeSpace[] = parsedJSON.free_space_pos;
+      const placedItems: Item[] = parsedJSON.placed_items || [];
+      const unpackedItems: Item[] = parsedJSON.unpacked_items || [];
 
       updateBin(newBin);
       updateItems(newItems);
       updateFreeSpaces(newFreeSpaces);
+      updateLastPackedItems(placedItems);
+      updateLastUnpackedItems(unpackedItems);
+
+      // Move to results tab on packing
+      setActiveTab(TabState.Result);
     }
   }
 
@@ -51,7 +70,6 @@ function PackerTable() {
 
       if (!filePath) return; // User cancelled
 
-      console.log("Selected file:", filePath);
       const result: string = await invoke("load_bin_and_items", { filePath });
       if (!result) {
         alert("Failed to load file");
@@ -62,10 +80,16 @@ function PackerTable() {
       updatePendingBin(parsedJSON.pack_input.bin);
       updatePendingItems(parsedJSON.pack_input.items); 
 
+      const placedItems = parsedJSON.pack_result.placed_items || [];
+      const unpackedItems = parsedJSON.pack_result.unpacked_items || [];
       updateBin(parsedJSON.pack_result.bin);
-      updateItems(parsedJSON.pack_result.items);
-      updateFreeSpaces(parsedJSON.pack_result.free_spaces);
+      updateItems(parsedJSON.pack_result.item_pos);
+      updateFreeSpaces(parsedJSON.pack_result.free_space_pos);
+      updateLastPackedItems(placedItems);
+      updateLastUnpackedItems(unpackedItems);
 
+      // Move to results tab after loading and packing
+      setActiveTab(TabState.Result);
     } catch (error) {
       console.error("Error loading file:", error);
       alert("Error loading file");
