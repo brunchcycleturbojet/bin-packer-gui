@@ -1,12 +1,12 @@
 import "./style/App.css";
 
 import Bin3DView from "./3DView/Bin3DView";
-import PackerTable from "./PackerTable";
+import PackerTable from "./PackerParams";
 import PackerResult from "./PackerResult";
 import { useAppStore, TabState } from "./store";
 
 function App() {
-  const { bin, items, freeSpaces, activeTab, setActiveTab } = useAppStore();
+  const { activeTab, setActiveTab } = useAppStore();
 
   return (
     <main className="container">
@@ -16,10 +16,10 @@ function App() {
 
       <div className="tabs">
         <button 
-          className={`tab-button ${activeTab === TabState.Table ? "active" : ""}`}
-          onClick={() => setActiveTab(TabState.Table)}
+          className={`tab-button ${activeTab === TabState.Params ? "active" : ""}`}
+          onClick={() => setActiveTab(TabState.Params)}
         >
-          Packer Table
+          Parameters
         </button>
         <button 
           className={`tab-button ${activeTab === TabState.Result ? "active" : ""}`}
@@ -30,7 +30,7 @@ function App() {
       </div>
 
       <div id="interfaceContainer">
-      {activeTab === TabState.Table ? (
+      {activeTab === TabState.Params ? (
         <PackerTable />
       ) : (
         <PackerResult />
