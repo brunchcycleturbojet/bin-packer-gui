@@ -102,7 +102,7 @@ function Bin3DView() {
 
       <Canvas id="bin3DView" flat shadows >
         <color attach="background" args={['rgb(255, 255, 255)']} />
-        <PerspectiveCamera makeDefault fov={30} position={[10, 10, 10]} zoom={1}/>
+        <PerspectiveCamera makeDefault fov={30} position={[20, 20, 20]} zoom={1}/>
         <CameraControls bin={bin} />
         <directionalLight position={[5,10,-2]} intensity={1.0}/>
         <ambientLight intensity={3.0} />

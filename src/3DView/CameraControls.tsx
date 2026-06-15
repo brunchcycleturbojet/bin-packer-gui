@@ -19,7 +19,7 @@ export function CameraControls({ bin }: CameraControlsProps) {
     controlsRef.current.target.set(bin.width / 2, bin.height / 2, bin.depth / 2);
 
     const maxDimension = Math.max(bin.width, bin.height, bin.depth);
-    const distance = maxDimension * 2.0;
+    const distance = maxDimension * 2.5;
     camera.position.set(distance, distance, distance);
 
   }, [bin.width, bin.height, bin.depth]);

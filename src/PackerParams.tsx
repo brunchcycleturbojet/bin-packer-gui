@@ -3,6 +3,13 @@ import { Bin, Item, FreeSpace, LoadOutput, PackerOutput } from "./binData";
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { useAppStore, TabState } from "./store";
+import { Button } from "./components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./components/ui/table";
+import { RiDeleteBinLine, RiEyeLine, RiPaletteLine } from "@remixicon/react";
+import { Input } from "#components/ui/input";
+import { Checkbox } from "#components/ui/checkbox";
+import { ScrollArea, ScrollBar } from "#components/ui/scroll-area";
+import { Field } from "#components/ui/field";
 
 function PackerTable() {
   const { 
@@ -52,12 +59,6 @@ function PackerTable() {
       // Move to results tab on packing
       setActiveTab(TabState.Result);
     }
-  }
-
-  function renderPackButton() {
-    return (
-      <button onClick={() => pack_bin()}>Pack</button>
-    );
   }
 
   // Load a bin from file
@@ -144,17 +145,16 @@ function PackerTable() {
 
     updatePendingItems([...pendingItems, newItem]);
   }
-  
-  function renderAddItemButton() {
-    return (
-      <button onClick={() => addItem()}>Add Item</button>
-    );
-  }
 
   // Delete item
   function renderRemoveButton(shape_id: number) {
     return (
-      <button onClick={() => updatePendingItems(pendingItems.filter(item => item.shape_id !== shape_id))}>Remove</button>
+      <Button 
+        variant="destructive" 
+        size="sm" 
+        onClick={() => updatePendingItems(pendingItems.filter(item => item.shape_id !== shape_id))}>
+        <RiDeleteBinLine />
+      </Button>
     );
   }
 
@@ -172,10 +172,10 @@ function PackerTable() {
 
     const renderInput = (dim: number, field: "width" | "height" | "depth") => {
       return(
-        <input
+        <Input
             type="number"
             value={dim}
-            className="input"
+            className="text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             onChange={(e) => updateItem(shape_id, { [field]: parseFloat(e.target.value) })}
             onBlur={(e) => {
               // Ensure value is within bounds on loss of focus
@@ -192,11 +192,11 @@ function PackerTable() {
     }
 
     return (
-      <div className="dimension-wrapper">
+      <div className="flex items-center">
         {renderInput(width, "width")}
-        <span>×</span>
+        <span className="mr-1 ml-1" >×</span>
         {renderInput(height, "height")}
-        <span>×</span>
+        <span className="mr-1 ml-1">×</span>
         {renderInput(depth, "depth")}
       </div>
     );
@@ -212,10 +212,10 @@ function PackerTable() {
 
     const renderInput = (dim: number, field: "width" | "height" | "depth") => {
       return(
-        <input
+        <Input
             type="number"
             value={dim}
-            className="input"
+            className=""
             onChange={(e) => updatePendingBinLocal({ [field]: parseFloat(e.target.value) })}
             onBlur={(e) => {
               // Ensure value is within bounds on loss of focus
@@ -232,77 +232,81 @@ function PackerTable() {
     }
 
     return (
-      <span>
-        <span>BinName </span>
-        {renderInput(width, "width")}
-        <span>×</span>
-        {renderInput(height, "height")}
-        <span>×</span>
-        {renderInput(depth, "depth")}
-      </span>
+      <div className="flex flex-row w-full justify-around pb-2">
+        <span className="grow pl-10 pr-10" >BinName </span>
+        <Field orientation={"horizontal"} className="grow-2 mr-10">
+          {renderInput(width, "width")}
+          <span>×</span>
+          {renderInput(height, "height")}
+          <span>×</span>
+          {renderInput(depth, "depth")}
+        </Field>
+      </div>
     );
   }
 
   return (
     <>
-      <div id="tableTitleControls">
-        {renderBinDimensionInput(pendingBin.width, pendingBin.height, pendingBin.depth)}
-        <span>
-          <button onClick={() => loadBinFromFile()}>Load</button>
-          <button onClick={() => saveBinToFile()}>Save as</button>
-          {renderAddItemButton()}
-          {renderPackButton()}
-        </span>
+      <div id="tableTitleControls" className="flex flex-col w-full justify-center pb-2">
+        <div>
+          {renderBinDimensionInput(pendingBin.width, pendingBin.height, pendingBin.depth)}
+        </div>
+        <div className="flex justify-around">
+          <Button onClick={() => loadBinFromFile()}>Load</Button>
+          <Button onClick={() => saveBinToFile()}>Save as</Button>
+          <Button onClick={() => addItem()}>Add Item</Button>
+          <Button variant="submit" onClick={() => pack_bin()}>Pack</Button>
+        </div>
       </div>
-      <div className="table-container">
-      <table>
-        <tbody>
-          <tr>
-            <th>{/* TODO: Toggle visiblity */}</th>
-            <th>{/* TODO: Display colour */}</th>
-            <th>Name</th>
-            <th>Size</th>
-            <th>Qty</th>
-            <th>{/* Column for remove item button */}</th>
-          </tr>
-          {pendingItems && pendingItems.length > 0 ? (
-            pendingItems.map((item) => (
-              <tr key={item.shape_id}>
-                <td><input type="checkbox" name={`item_${item.shape_id}`} value={`${item.shape_id}`} /></td>
-                <td>TODO{/* Colour display */}</td>
-                <td>
-                  <input
-                    type="text"
-                    value={item.name}
-                    onChange={(e) => updateItem(item.shape_id, { name: e.target.value })}
-                  />
-                </td>
-                <td>
-                  {renderDimensionInput(item.shape_id, item.width, item.height, item.depth)}
-                </td>
-                <td>
-                  <input
-                    type="number"
-                    value={item.quantity}
-                    onChange={(e) => updateItem(item.shape_id, { quantity: parseInt(e.target.value) })}
-                    className="input"
-                  />
-                </td>
-                <td>{renderRemoveButton(item.shape_id)}</td>
-              </tr>
-            ))): (
-              <>
-              <tr>
-                <td colSpan={6}>No items</td>
-              </tr>
-              </>
-            )
-          }
-
-          {/* <tr> <td colSpan={6}><button onClick={() => addItem()}>Add Item</button></td> </tr> */}
-        </tbody>
-
-      </table>
+      <div className="h-full w-full">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead><div className="flex items-center justify-center" ><RiEyeLine size={18} /></div></TableHead>
+              <TableHead><div className="flex items-center justify-center" ><RiPaletteLine size={18} /></div></TableHead>
+              <TableHead className="text-center">Name</TableHead>
+              <TableHead className="text-center">Size (cm)</TableHead>
+              <TableHead className="text-center">Qty</TableHead>
+              <TableHead>{/* Column for remove item button */}</TableHead>
+            </TableRow>
+          </TableHeader>
+            <TableBody>
+              {pendingItems && pendingItems.length > 0 ? (
+                pendingItems.map((item) => (
+                  <TableRow key={item.shape_id}>
+                    <TableCell> <Checkbox /> {/* Visibility toggle, to implement */}</TableCell>
+                    <TableCell>TD{/* Colour display, to implement */}</TableCell>
+                    <TableCell>
+                      <Input
+                        type="text"
+                        value={item.name}
+                        onChange={(e) => updateItem(item.shape_id, { name: e.target.value })}
+                        className="text-ellipsis"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      {renderDimensionInput(item.shape_id, item.width, item.height, item.depth)}
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        value={item.quantity}
+                        onChange={(e) => updateItem(item.shape_id, { quantity: parseInt(e.target.value) })}
+                        className="text-ellipsis text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                    </TableCell>
+                    <TableCell>{renderRemoveButton(item.shape_id)}</TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center">
+                    No items
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+        </Table>
       </div>
     </>
   );
