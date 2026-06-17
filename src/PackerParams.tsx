@@ -5,11 +5,14 @@ import { open, save } from "@tauri-apps/plugin-dialog";
 import { useAppStore, TabState } from "./store";
 import { Button } from "./components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./components/ui/table";
-import { RiDeleteBinLine, RiEyeLine, RiPaletteLine } from "@remixicon/react";
+import { RiAddBoxLine, RiDeleteBinLine, RiEyeLine, RiImportFill, RiPaletteLine, RiPlayLine, RiSave3Fill } from "@remixicon/react";
 import { Input } from "#components/ui/input";
 import { Checkbox } from "#components/ui/checkbox";
-import { ScrollArea, ScrollBar } from "#components/ui/scroll-area";
 import { Field } from "#components/ui/field";
+import { HexColorPicker } from "react-colorful";
+import { Popover, PopoverContent, PopoverTrigger } from "#components/ui/popover";
+import { ButtonGroup } from "#components/ui/button-group";
+import { Tooltip, TooltipContent, TooltipTrigger } from "#components/ui/tooltip";
 
 function PackerTable() {
   const { 
@@ -103,7 +106,6 @@ function PackerTable() {
       const filePath = await save({
         filters: [{ name: "JSON", extensions: ["json"] }],
       });
-
       if (!filePath) return; // User cancelled
 
       const payload = {
@@ -119,7 +121,8 @@ function PackerTable() {
 
       const result: string = await invoke("save_bin_and_items", { json, filePath });
       if (result) {
-        alert(`Saved to ${result}`);
+        // alert(`Saved to ${result}`);
+        // TODO: Popup with saved confirmation
       } else {
         alert("Failed to save file");
       }
@@ -215,7 +218,7 @@ function PackerTable() {
         <Input
             type="number"
             value={dim}
-            className=""
+            className="text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             onChange={(e) => updatePendingBinLocal({ [field]: parseFloat(e.target.value) })}
             onBlur={(e) => {
               // Ensure value is within bounds on loss of focus
@@ -233,7 +236,7 @@ function PackerTable() {
 
     return (
       <div className="flex flex-row w-full justify-around pb-2">
-        <span className="grow pl-10 pr-10" >BinName </span>
+        <span className="flex items-center text-2xl grow pr-5" >BinName </span>
         <Field orientation={"horizontal"} className="grow-2 mr-10">
           {renderInput(width, "width")}
           <span>×</span>
@@ -247,16 +250,39 @@ function PackerTable() {
 
   return (
     <>
-      <div id="tableTitleControls" className="flex flex-col w-full justify-center pb-2">
-        <div>
+      <div className="flex w-full justify-around pb-2 pt-4 pr-6 pl-6 border-t-2">
+        <div className="w-full">
           {renderBinDimensionInput(pendingBin.width, pendingBin.height, pendingBin.depth)}
         </div>
-        <div className="flex justify-around">
-          <Button onClick={() => loadBinFromFile()}>Load</Button>
-          <Button onClick={() => saveBinToFile()}>Save as</Button>
-          <Button onClick={() => addItem()}>Add Item</Button>
-          <Button variant="submit" onClick={() => pack_bin()}>Pack</Button>
-        </div>
+        <ButtonGroup>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button type="button" size="icon-lg" onClick={() => loadBinFromFile()}>
+                <RiImportFill className="size-6" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Load</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button type="button" size="icon-lg" onClick={() => saveBinToFile()}>
+                <RiSave3Fill className="size-6"/>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Save as</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button type="button" size="icon-lg" className="" onClick={() => addItem()}>
+                <RiAddBoxLine className="size-6"/>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Add item</TooltipContent>
+          </Tooltip>
+          <Button type="button" size="lg" className="flex items-center" variant="submit" onClick={() => pack_bin()}>
+            <b className="pt-0.5">Pack!</b>
+          </Button>
+        </ButtonGroup>
       </div>
       <div className="h-full w-full">
         <Table>
@@ -266,7 +292,7 @@ function PackerTable() {
               <TableHead><div className="flex items-center justify-center" ><RiPaletteLine size={18} /></div></TableHead>
               <TableHead className="text-center">Name</TableHead>
               <TableHead className="text-center">Size (cm)</TableHead>
-              <TableHead className="text-center">Qty</TableHead>
+              <TableHead className="text-center w-20">Qty</TableHead>
               <TableHead>{/* Column for remove item button */}</TableHead>
             </TableRow>
           </TableHeader>
@@ -274,9 +300,21 @@ function PackerTable() {
               {pendingItems && pendingItems.length > 0 ? (
                 pendingItems.map((item) => (
                   <TableRow key={item.shape_id}>
-                    <TableCell> <Checkbox /> {/* Visibility toggle, to implement */}</TableCell>
-                    <TableCell>TD{/* Colour display, to implement */}</TableCell>
-                    <TableCell>
+                    <TableCell> {/* Visibility toggle, to implement */}
+                      <Checkbox checked={true} /> 
+                    </TableCell>
+                    <TableCell> {/* Colour display, to implement */}
+                      <Popover>
+                        <PopoverTrigger className="flex items-center justify-center">
+                          <div className="bg-blue-500 hover:bg-blue-700 text-white size-4.5 border border-blue-700 rounded"/>
+                        </PopoverTrigger>
+                        <PopoverContent className="flex items-center w-fit p-5">
+                          <HexColorPicker />
+                          <Button>Reset</Button>
+                        </PopoverContent>
+                      </Popover>
+                    </TableCell>
+                    <TableCell> {/* Item name */}
                       <Input
                         type="text"
                         value={item.name}
@@ -284,10 +322,10 @@ function PackerTable() {
                         className="text-ellipsis"
                       />
                     </TableCell>
-                    <TableCell>
+                    <TableCell> {/* Dimensions */}
                       {renderDimensionInput(item.shape_id, item.width, item.height, item.depth)}
                     </TableCell>
-                    <TableCell>
+                    <TableCell> {/* Quantity */}
                       <Input
                         type="number"
                         value={item.quantity}

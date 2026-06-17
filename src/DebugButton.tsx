@@ -1,3 +1,6 @@
+import { Button } from "#components/ui/button";
+import { RiBugLine } from "@remixicon/react";
+
 interface DebugButtonProps {
   showPerf: boolean;
   onToggle: () => void;
@@ -6,16 +9,14 @@ interface DebugButtonProps {
 }
 
 export function DebugButton({ showPerf, onToggle, showFreeSpaces = false, onToggleFreeSpaces }: DebugButtonProps) {
-  const buttonClass = `debugButton ${showPerf ? 'debugButton--active' : 'debugButton--inactive'}`;
-
   return (
     <>
-      <button
+      <Button
+        variant="secondary"
         onClick={onToggle}
-        className={buttonClass}
-      >
-        Debug
-      </button>
+        className="absolute z-100 right-1.5 top-1.5">
+        <RiBugLine />
+      </Button>
       
       {showPerf && onToggleFreeSpaces && (
         <button
