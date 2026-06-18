@@ -229,13 +229,14 @@ function PackerParams() {
 
     return (
       <div className="flex flex-row w-full justify-around pb-2">
-        <span className="flex items-center text-2xl grow pr-5" >BinName </span>
+        <div className="flex items-center text-2xl grow pr-5 text-nowrap" >The Big Bin</div>
         <Field orientation={"horizontal"} className="grow-2 mr-10">
           {renderInput(width, "width")}
           <span>×</span>
           {renderInput(height, "height")}
           <span>×</span>
           {renderInput(depth, "depth")}
+          <span className="text-xs h-full flex flex-col justify-end text-muted-foreground">cm</span>
         </Field>
       </div>
     );
@@ -277,7 +278,7 @@ function PackerParams() {
           </Button>
         </ButtonGroup>
       </div>
-      <div className="h-[68vh] max-h-full w-full relative overflow-auto">
+      <div className="h-full max-h-1/10 w-full relative overflow-auto">
         <Table>
           <TableHeader className="sticky top-0 bg-background z-10">
             <TableRow>
