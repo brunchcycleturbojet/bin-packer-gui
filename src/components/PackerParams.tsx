@@ -1,11 +1,10 @@
-import "./style/App.css";
-import { Bin, Item, FreeSpace, LoadOutput, PackerOutput } from "./binData";
+import { Bin, Item, FreeSpace, LoadOutput, PackerOutput } from "../binData";
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
-import { useAppStore, TabState } from "./store";
-import { Button } from "./components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./components/ui/table";
-import { RiAddBoxLine, RiDeleteBinLine, RiEyeLine, RiImportFill, RiPaletteLine, RiPlayLine, RiSave3Fill } from "@remixicon/react";
+import { useAppStore } from "../store";
+import { Button } from "./ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
+import { RiAddBoxLine, RiDeleteBinLine, RiEyeLine, RiImportFill, RiPaletteLine, RiSave3Fill } from "@remixicon/react";
 import { Input } from "#components/ui/input";
 import { Checkbox } from "#components/ui/checkbox";
 import { Field } from "#components/ui/field";
@@ -26,7 +25,6 @@ function PackerTable() {
     updatePendingItems,
     updateLastPackedItems,
     updateLastUnpackedItems,
-    setActiveTab,
   } = useAppStore();
 
   // Run packing algo
@@ -58,9 +56,6 @@ function PackerTable() {
       updateFreeSpaces(newFreeSpaces);
       updateLastPackedItems(placedItems);
       updateLastUnpackedItems(unpackedItems);
-
-      // Move to results tab on packing
-      setActiveTab(TabState.Result);
     }
   }
 
@@ -92,8 +87,6 @@ function PackerTable() {
       updateLastPackedItems(placedItems);
       updateLastUnpackedItems(unpackedItems);
 
-      // Move to results tab after loading and packing
-      setActiveTab(TabState.Result);
     } catch (error) {
       console.error("Error loading file:", error);
       alert("Error loading file");
@@ -284,9 +277,9 @@ function PackerTable() {
           </Button>
         </ButtonGroup>
       </div>
-      <div className="h-full w-full">
+      <div className="h-[68vh] max-h-full w-full relative overflow-auto">
         <Table>
-          <TableHeader>
+          <TableHeader className="sticky top-0 bg-background z-10">
             <TableRow>
               <TableHead><div className="flex items-center justify-center" ><RiEyeLine size={18} /></div></TableHead>
               <TableHead><div className="flex items-center justify-center" ><RiPaletteLine size={18} /></div></TableHead>

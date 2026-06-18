@@ -7,7 +7,7 @@ import { Perf } from 'r3f-perf';
 
 import { Bin, Item, FreeSpace } from "../binData";
 import { CameraControls } from "./CameraControls";
-import { DebugButton } from "../DebugButton";
+import { DebugButton } from "../components/DebugButton";
 import { useAppStore } from "../store";
 
 function Bin3DView() {

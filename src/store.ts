@@ -2,8 +2,9 @@ import { create } from 'zustand';
 import { Bin, Item, FreeSpace } from './binData';
 
 enum TabState {
-  Params = "table",
-  Result = "result",
+  Packed = "packed",
+  NotPacked = "notPacked",
+  Stats = "stats"
 }
 
 interface AppStore {
@@ -34,7 +35,7 @@ export const useAppStore = create<AppStore>((set) => ({
   freeSpaces: [],
   pendingBin: initialBin,
   pendingItems: [],
-  activeTab: TabState.Params,
+  activeTab: TabState.Packed,
   lastPackedItems: [],
   lastUnpackedItems: [],
 
