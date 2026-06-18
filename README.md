@@ -2,7 +2,7 @@
 
 ![](/public/prototype.png)
 
-#### **STATUS**: Barebones UI. The algo is working and often finds optimal or close to optimal solutions, with good performance.
+#### **STATUS**: Rough UI. The algo is working and often finds optimal or close to optimal solutions, with good performance.
 
 #### **CURRENT FOCUS**: Continue to refine algo logic, and start styling the presentation with the current feature set.
 
@@ -17,25 +17,27 @@ To run: ```npm run tauri dev```
 
 ## Todo list
 
+Visual/UX:
+- [ ] Save/Edit bin names (currently placeholder only)
+- [ ] Colour customisation (currently placeholder only)
+- [ ] Log (currently placeholder only)
+- [ ] Export/Import results to CSV 
+- [ ] Metric/Imperial conversions
+- [ ] Animations for in-progress packing
+- [ ] Control inputs guide
+- [ ] 3D view tools (hide on click, temp removal)
+
 Performance:
 - [ ] Render items incrementally (larger quantities of items packs faster than it renders!)
 - [ ] Multi-threading: the algo divides the box into distinct spaces, which could be processed concurrently
 - [x] Use instanced meshes for identical items, to reduce draw calls on render
 - [ ] Hardware acceleration (Currently CPU only)
+- [ ] Wait for packing on non-ui thread
 
 Sorting:
 - [ ] Consider genetic approach, with targeted mutations, and re-pack to try and achieve maximum bin usage
 - [ ] Configurable heuristics (e.g minimise bin size, minimise X/Y/Z use, consider stability)
 - [ ] Multi-bin packing 
-
-Visual/UX:
-- [ ] Instanced results report in tabs
-- [ ] Export/Import results to CSV 
-- [ ] Wait for packing on non-ui thread
-- [ ] Control inputs guide
-- [ ] Colour sets for items (e.g based on size, user defined, random)
-- [ ] 3D manipulation in viewer (hide on click, temp removal)
-- [ ] Metric/Imperial conversions
 
 
 ## Acknowledgements
