@@ -1,6 +1,6 @@
 import { OrbitControls } from "@react-three/drei";
 import { Vector3, MOUSE } from "three";
-import { Bin } from "../binData";
+import { Bin } from "../bin-data";
 import { useEffect, useRef, useState } from "react";
 import { useThree } from "@react-three/fiber";
 

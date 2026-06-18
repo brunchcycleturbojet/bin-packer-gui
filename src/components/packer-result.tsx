@@ -1,5 +1,5 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { Item } from "../binData";
+import { Item } from "../bin-data";
 
 interface PackerResultProps {
   items: Item[];

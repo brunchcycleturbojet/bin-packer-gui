@@ -1,15 +1,15 @@
 import "./style/App.css";
 
 import Bin3DView from "./3DView/Bin3DView";
-import PackerTable from "./components/PackerParams";
-import PackerResult from "./components/PackerResult";
+import PackerParams from "./components/packer-params";
+import PackerResult from "./components/packer-result";
 import { useAppStore, TabState } from "./store";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { ThemeProvider } from "./components/theme-provider";
 import { LightDarkToggle } from "./components/light-dark-toggle";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "#components/ui/resizable";
 import { TooltipProvider } from "#components/ui/tooltip";
-import PackerSummary from "./components/PackerSummary";
+import PackerSummary from "./components/packer-summary";
 
 function AppContent() {
   const { activeTab, setActiveTab, lastPackedItems, lastUnpackedItems } = useAppStore();
@@ -37,7 +37,7 @@ function AppContent() {
                 <div className="absolute top-1.5 right-1.5 z-10">
                   <LightDarkToggle />
                 </div>
-                <PackerTable />
+                <PackerParams />
               </div>
             </ResizablePanel>
             <ResizableHandle withHandle className="border-t-amber-500"/>

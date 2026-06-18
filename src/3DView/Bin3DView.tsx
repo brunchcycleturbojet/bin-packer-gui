@@ -5,9 +5,9 @@ import { Grid, PerspectiveCamera, Text } from '@react-three/drei'
 import { EdgesGeometry, LineSegments, LineBasicMaterial, AxesHelper, BoxGeometry, Color, SRGBColorSpace, DoubleSide, InstancedMesh, Matrix4, MeshPhongMaterial, MeshStandardMaterial } from "three";
 import { Perf } from 'r3f-perf';
 
-import { Bin, Item, FreeSpace } from "../binData";
+import { Bin, Item, FreeSpace } from "../bin-data";
 import { CameraControls } from "./CameraControls";
-import { DebugButton } from "../components/DebugButton";
+import { DebugButton } from "../components/debug-button";
 import { useAppStore } from "../store";
 
 function Bin3DView() {

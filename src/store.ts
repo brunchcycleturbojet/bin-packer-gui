@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Bin, Item, FreeSpace } from './binData';
+import { Bin, Item, FreeSpace } from './bin-data';
 
 enum TabState {
   Packed = "packed",

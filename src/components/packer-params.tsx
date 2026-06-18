@@ -1,4 +1,4 @@
-import { Bin, Item, FreeSpace, LoadOutput, PackerOutput } from "../binData";
+import { Bin, Item, FreeSpace, LoadOutput, PackerOutput } from "../bin-data";
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { useAppStore } from "../store";
@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "#components/ui/popover"
 import { ButtonGroup } from "#components/ui/button-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "#components/ui/tooltip";
 
-function PackerTable() {
+function PackerParams() {
   const { 
     bin, 
     pendingBin, 
@@ -343,4 +343,4 @@ function PackerTable() {
   );
 }
 
-export default PackerTable;
+export default PackerParams;
