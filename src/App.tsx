@@ -33,7 +33,7 @@ function AppContent() {
         <ResizablePanel minSize={"30vw"}>
           <ResizablePanelGroup orientation="vertical">
             <ResizablePanel>
-              <div className="flex-[1_1] max-h-dvh min-h-0 flex-col min-w-0 overflow-hidden">
+              <div className="flex-[1_1] h-full max-h-dvh min-h-0 flex-col min-w-0 overflow-hidden">
                 <PackerParams />
               </div>
             </ResizablePanel>
@@ -43,7 +43,7 @@ function AppContent() {
                 defaultValue={TabState.Packed}
                 value={activeTab}
                 onValueChange={(value) => setActiveTab(value as TabState)}
-                className="h-full  w-full">
+                className="h-full w-full">
                   <TabsList className="ml-2 mt-1.5">
                     <TabsTrigger className="text-sm p-4 m-1" value={TabState.Stats}>Summary</TabsTrigger>
                     <TabsTrigger className="text-sm p-4 m-1" value={TabState.Packed}>Packed ({totalPacked})</TabsTrigger>
@@ -52,10 +52,10 @@ function AppContent() {
                   <TabsContent value={TabState.Stats}>
                     <PackerSummary />
                   </TabsContent>
-                  <TabsContent value={TabState.Packed}>
+                  <TabsContent className="grow min-h-0" value={TabState.Packed}>
                     <PackerResult items={lastPackedItems} emptyMessage="Nothing packed..."/>
                   </TabsContent>
-                  <TabsContent value={TabState.NotPacked}>
+                  <TabsContent className="grow min-h-0" value={TabState.NotPacked}>
                     <PackerResult items={lastUnpackedItems} emptyMessage="All packed!"/>
                   </TabsContent>
               </Tabs>

@@ -12,6 +12,7 @@ import { HexColorPicker } from "react-colorful";
 import { Popover, PopoverContent, PopoverTrigger } from "#components/ui/popover";
 import { ButtonGroup } from "#components/ui/button-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "#components/ui/tooltip";
+import { ScrollArea } from "./ui/scroll-area";
 
 function PackerParams() {
   const { 
@@ -243,8 +244,8 @@ function PackerParams() {
   }
 
   return (
-    <>
-      <div className="flex w-full justify-around pb-2 pt-4 pr-6 pl-6 border-t-2">
+    <div className="h-full flex flex-col">
+      <div className="flex h-20 w-full justify-around pb-2 pt-4 pr-6 pl-6 border-t-2">
         <div className="w-full">
           {renderBinDimensionInput(pendingBin.width, pendingBin.height, pendingBin.depth)}
         </div>
@@ -278,9 +279,9 @@ function PackerParams() {
           </Button>
         </ButtonGroup>
       </div>
-      <div className="h-full max-h-1/10 w-full relative overflow-auto">
-        <Table>
-          <TableHeader className="sticky top-0 bg-background z-10">
+      <ScrollArea className="grow min-h-0">
+        <Table className="h-full w-full relative">
+          <TableHeader className="sticky top-0 bg-secondary">
             <TableRow>
               <TableHead><div className="flex items-center justify-center" ><RiEyeLine size={18} /></div></TableHead>
               <TableHead><div className="flex items-center justify-center" ><RiPaletteLine size={18} /></div></TableHead>
@@ -290,57 +291,56 @@ function PackerParams() {
               <TableHead>{/* Column for remove item button */}</TableHead>
             </TableRow>
           </TableHeader>
-            <TableBody>
-              {pendingItems && pendingItems.length > 0 ? (
-                pendingItems.map((item) => (
-                  <TableRow key={item.shape_id}>
-                    <TableCell> {/* Visibility toggle, to implement */}
-                      <Checkbox checked={true} /> 
-                    </TableCell>
-                    <TableCell> {/* Colour display, to implement */}
-                      <Popover>
-                        <PopoverTrigger className="flex items-center justify-center">
-                          <div className="bg-blue-500 hover:bg-blue-700 text-white size-4.5 border border-blue-700 rounded"/>
-                        </PopoverTrigger>
-                        <PopoverContent className="flex items-center w-fit p-5">
-                          <HexColorPicker />
-                          <Button>Reset</Button>
-                        </PopoverContent>
-                      </Popover>
-                    </TableCell>
-                    <TableCell> {/* Item name */}
-                      <Input
-                        type="text"
-                        value={item.name}
-                        onChange={(e) => updateItem(item.shape_id, { name: e.target.value })}
-                        className="text-ellipsis"
-                      />
-                    </TableCell>
-                    <TableCell> {/* Dimensions */}
-                      {renderDimensionInput(item.shape_id, item.width, item.height, item.depth)}
-                    </TableCell>
-                    <TableCell> {/* Quantity */}
-                      <Input
-                        type="number"
-                        value={item.quantity}
-                        onChange={(e) => updateItem(item.shape_id, { quantity: parseInt(e.target.value) })}
-                        className="text-ellipsis text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      />
-                    </TableCell>
-                    <TableCell>{renderRemoveButton(item.shape_id)}</TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center">
-                    No items
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
+          <TableBody>
+            {pendingItems && pendingItems.length > 0 ? (pendingItems.map((item) => (
+              <TableRow key={item.shape_id}>
+                <TableCell> {/* Visibility toggle, to implement */}
+                  <Checkbox checked={true} /> 
+                </TableCell>
+                <TableCell> {/* Colour display, to implement */}
+                  <Popover>
+                    <PopoverTrigger className="flex items-center justify-center">
+                      <div className="bg-blue-500 hover:bg-blue-700 text-white size-4.5 border border-blue-700 rounded"/>
+                    </PopoverTrigger>
+                    <PopoverContent className="flex items-center w-fit p-5">
+                      <HexColorPicker />
+                      <Button>Reset</Button>
+                    </PopoverContent>
+                  </Popover>
+                </TableCell>
+                <TableCell> {/* Item name */}
+                  <Input
+                    type="text"
+                    value={item.name}
+                    onChange={(e) => updateItem(item.shape_id, { name: e.target.value })}
+                    className="text-ellipsis"
+                  />
+                </TableCell>
+                <TableCell> {/* Dimensions */}
+                  {renderDimensionInput(item.shape_id, item.width, item.height, item.depth)}
+                </TableCell>
+                <TableCell> {/* Quantity */}
+                  <Input
+                    type="number"
+                    value={item.quantity}
+                    onChange={(e) => updateItem(item.shape_id, { quantity: parseInt(e.target.value) })}
+                    className="text-ellipsis text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                </TableCell>
+                <TableCell>{renderRemoveButton(item.shape_id)}</TableCell>
+              </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center">
+                  No items
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
         </Table>
-      </div>
-    </>
+      </ScrollArea>
+    </div>
   );
 }
 
